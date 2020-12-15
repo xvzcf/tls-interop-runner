@@ -1,1 +1,3 @@
 .*.swp
+certs/
+cert-utils/cert-utils

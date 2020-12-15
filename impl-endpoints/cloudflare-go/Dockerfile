@@ -12,7 +12,6 @@ FROM alpine:3.12
 
 COPY --from=builder /cf-go /cf-go
 
-COPY root.pem /
 COPY client.go /
 
 COPY run_endpoint.sh /

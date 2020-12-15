@@ -5,24 +5,20 @@ import (
     "fmt"
     "crypto/x509"
     "crypto/tls"
-    "time"
     "io/ioutil"
 )
 
 func main() {
     certPool := x509.NewCertPool()
-    pem, err := ioutil.ReadFile("/root.pem")
+    pem, err := ioutil.ReadFile("/certs/rootCA.pem")
     certPool.AppendCertsFromPEM(pem)
 
-    now := func() time.Time { return time.Unix(1593608733, 0) }
     conf := &tls.Config{
          RootCAs: certPool,
-         Time: now,
          SupportDelegatedCredential: true,
-         InsecureSkipVerify: true,
     }
 
-    conn, err := tls.Dial("tcp", "bssl-server:4433", conf)
+    conn, err := tls.Dial("tcp", "server:4433", conf)
     if err != nil {
         log.Println(err)
         return
