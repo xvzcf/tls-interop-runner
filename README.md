@@ -8,6 +8,8 @@ It has been fashioned after the [QUIC Interop Runner](https://github.com/marten-
 
 1. `cd implementations/boringssl && docker build -t bssl-endpoint .`
 2. `cd implementations/cloudflare-go && docker build -t cf-go-endpoint .`
-3. `docker network create interop-net`
-4. `docker run -t --rm --name bssl-server --network interop-net bssl-endpoint`
-5. `docker run -t --rm --name go-cf-client --network interop-net cf-go-endpoint`
+3. `cd implementations/rustls && docker build -t rustls-endpoint .`
+4. `docker network create interop-net`
+5. `docker run -t --rm --name bssl-server --network interop-net bssl-endpoint`
+6. `docker run -t --rm --name go-cf-client --network interop-net cf-go-endpoint`
+7. `docker run -t --rm --name rustls-server --network interop-net rustls-endpoint`
