@@ -219,32 +219,18 @@ func randomSerialNumber() *big.Int {
 	return serialNumber
 }
 
-func delegatedCredentialSignedMessage(credBytes []byte, algorithm signatureAlgorithm, leafDER []byte) []byte {
-	// https://tools.ietf.org/html/draft-ietf-tls-subcerts-09#section-3
-	ret := make([]byte, 64, 128)
-	for i := range ret {
-		ret[i] = 0x20
-	}
-
-	ret = append(ret, []byte("TLS, server delegated credentials\x00")...)
-	ret = append(ret, leafDER...)
-	ret = append(ret, byte(algorithm>>8), byte(algorithm))
-	ret = append(ret, credBytes...)
-
-	return ret
-}
-
 func (m *mkcert) makeDC() (dc, privPKCS8 []uint8, err error) {
 	var pub crypto.PublicKey
 	var curve elliptic.Curve
     var expectedAlgo signatureAlgorithm
     var tlsVersion uint16
-	curve = elliptic.P256()
+
+    curve = elliptic.P256()
 	priv, err := ecdsa.GenerateKey(curve, rand.Reader)
-	if err != nil {
+    if err != nil {
 		return nil, nil, err
 	}
-	if privPKCS8, err = x509.MarshalPKCS8PrivateKey(priv); err != nil {
+    if privPKCS8, err = x509.MarshalPKCS8PrivateKey(priv); err != nil {
 		return nil, nil, err
 	}
 	expectedAlgo = signatureECDSAWithP256AndSHA256
@@ -286,13 +272,25 @@ func (m *mkcert) makeDC() (dc, privPKCS8 []uint8, err error) {
     parentKey, err := x509.ParsePKCS8PrivateKey(parentKeyDERBlock.Bytes)
 	fatalIfErr(err, "failed to parse the key")
 
+    dcMessageToSign := make([]byte, 64, 128)
+	for i := range dcMessageToSign {
+		dcMessageToSign[i] = 0x20
+	}
+	dcMessageToSign = append(dcMessageToSign, []byte("TLS, server delegated credentials\x00")...)
+	dcMessageToSign = append(dcMessageToSign, parentCertDERBlock.Bytes...)
+	dcMessageToSign = append(dcMessageToSign, byte(lifetimeSecs>>24), byte(lifetimeSecs>>16), byte(lifetimeSecs>>8), byte(lifetimeSecs))
+	dcMessageToSign = append(dcMessageToSign, byte(expectedAlgo>>8), byte(expectedAlgo))
+	dcMessageToSign = append(dcMessageToSign, byte(len(pubBytes)>>16), byte(len(pubBytes)>>8), byte(len(pubBytes)))
+	dcMessageToSign = append(dcMessageToSign, pubBytes...)
+	dcMessageToSign = append(dcMessageToSign, byte(expectedAlgo>>8), byte(expectedAlgo))
+
 	var dummyConfig Config
 	parentSigner, err := getSigner(tlsVersion, parentKey, &dummyConfig, expectedAlgo, false /* not for verification */)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	parentSignature, err := parentSigner.signMessage(parentKey, &dummyConfig, delegatedCredentialSignedMessage(dc, expectedAlgo, parentCertDERBlock.Bytes))
+	parentSignature, err := parentSigner.signMessage(parentKey, &dummyConfig, dcMessageToSign)
 	if err != nil {
 		return nil, nil, err
 	}

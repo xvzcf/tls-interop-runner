@@ -19,7 +19,6 @@ FROM alpine:3.12
 RUN apk add gcc
 
 COPY --from=builder /boringssl/build/tool/bssl /usr/bin/
-COPY --from=builder /boringssl/build/ssl/test/bssl_shim /usr/bin/
 
 COPY run_endpoint.sh /run_endpoint.sh
 RUN chmod +x /run_endpoint.sh

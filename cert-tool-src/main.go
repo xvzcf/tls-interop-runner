@@ -4,7 +4,7 @@
 
 // This code is based on https://github.com/FiloSottile/mkcert
 // and also draws from https://boringssl.googlesource.com/boringssl/+/refs/heads/master/ssl/test/runner/
-// It's in rough shape right now; more documentation and refactoring to follow.
+// It's in very rough shape right now; more documentation and refactoring to follow.
 
 package main
 

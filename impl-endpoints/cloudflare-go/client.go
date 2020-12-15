@@ -37,5 +37,6 @@ func main() {
         fmt.Printf("Issuer Name: %s\n", cert.Issuer)
         fmt.Printf("Expiry: %s \n", cert.NotAfter.Format("2006-January-02"))
         fmt.Printf("Cert Serial Number: %v \n", cert.SerialNumber)
+        fmt.Printf("DC: %#v \n", conn.ConnectionState().VerifiedDC)
     }
 }

@@ -7,5 +7,8 @@ It is fashioned after the [QUIC Interop Runner](https://github.com/marten-seeman
 ## Quickstart
 
 1. `make certs`
+2. `make dc` (TODO: Flesh out testing API to remove this step)
 3. `env SERVER={rustls|boringssl} CLIENT=cloudflare-go docker-compose build`
 4. `env SERVER={rustls|boringssl} CLIENT=cloudflare-go docker-compose up`
+
+set `SERVER=boringssl` for delegated credential tests.
