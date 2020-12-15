@@ -3,7 +3,6 @@ set -e
 
 ROLE=client
 
-echo "Using commit:" `cat commit.txt`
 if [ "$ROLE" == "client" ]; then
     # TODO
     echo "Running Cloudflare-Go client."

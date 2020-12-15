@@ -14,13 +14,10 @@ RUN mkdir /boringssl/build
 WORKDIR /boringssl/build
 RUN cmake .. -G"Ninja" && ninja
 
-RUN git rev-parse HEAD > /commit.txt
-
 FROM alpine:3.12
 
 RUN apk add gcc
 
-COPY --from=builder /commit.txt /
 COPY --from=builder /boringssl/build/tool/bssl /usr/bin/
 COPY --from=builder /boringssl/build/ssl/test/bssl_shim /usr/bin/
 

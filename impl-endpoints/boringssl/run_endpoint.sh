@@ -1,8 +1,6 @@
 #!/bin/sh
 set -e
 
-echo "Using commit:" `cat commit.txt`
-
 if [ "$ROLE" == "client" ]; then
     # TODO
     true
