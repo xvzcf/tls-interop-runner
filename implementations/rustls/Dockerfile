@@ -1,13 +1,5 @@
 FROM rust:1.44 AS builder
 
-#RUN apk update && \
-#    apk upgrade && \
-#    apk add build-base \
-#            linux-headers \
-#            git 
-
-#FROM rust:1.44
-
 RUN git clone https://github.com/ctz/rustls.git /rustls
 
 WORKDIR /rustls 
