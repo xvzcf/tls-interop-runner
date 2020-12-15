@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-if [ "$ROLE" == "client" ]; then
+if [ "$ROLE" = "client" ]; then
     # TODO
     true
 else

@@ -1,14 +1,14 @@
 #!/bin/sh
 set -e
 
-echo "Using commit:" `cat commit.txt`
+echo "Using commit:" "$(cat commit.txt)"
 
-if [ "$ROLE" == "client" ]; then
+if [ "$ROLE" = "client" ]; then
     # TODO
     true
 else
-    echo "Running BoringSSL server."
+    echo "Running rustls server."
     echo "Server params: $SERVER_PARAMS"
     echo "Test case: $TESTCASE"
-    tlsserver --certs /end.fullchain --key /end.key -p 4433 echo
+    tlsserver --certs /certs/server.cert --key /certs/server.key -p 4433 echo
 fi

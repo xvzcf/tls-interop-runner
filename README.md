@@ -6,8 +6,6 @@ It is fashioned after the [QUIC Interop Runner](https://github.com/marten-seeman
 
 ## Quickstart
 
-0. `cd cert-utils && go build . && cd ..`
-1. `mkdir certs && cert-utils/cert-utils -CA`
-2. `./cert-utils/cert-utils -cert-out certs/server.cert -key-out certs/server.key server`
-3. `env SERVER=boringssl CLIENT={cloudflare-go|rustls} docker-compose build`
-4. `env SERVER=boringssl CLIENT={cloudflare-go|rustls} docker-compose up`
+1. `make certs`
+3. `env SERVER={rustls|boringssl} CLIENT=cloudflare-go docker-compose build`
+4. `env SERVER={rustls|boringssl} CLIENT=cloudflare-go docker-compose up`
