@@ -8,14 +8,10 @@ RUN apk add build-base \
 WORKDIR /cf-go/src
 RUN ./make.bash
 
-RUN git rev-parse HEAD > /commit.txt
-
 FROM alpine:3.12
 
-COPY --from=builder /commit.txt /
 COPY --from=builder /cf-go /cf-go
 
-COPY root.pem /
 COPY client.go /
 
 COPY run_endpoint.sh /
