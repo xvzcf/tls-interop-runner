@@ -50,7 +50,7 @@ func main() {
 	handler, ok := testCaseHandlers[*testCase]
 	if !ok {
 		// Skip this test case
-		os.Exit(-2)
+		os.Exit(64)
 	}
 
 	if *role == "client" {

@@ -15,4 +15,4 @@ dc: certs/server.cert certs/server.key cert-tool
 	./cert-tool -cert-in certs/server.cert -key-in certs/server.key -generate-dc -dc-out certs/dc.txt
 
 clean:
-	docker system prune -a
+	docker builder prune
