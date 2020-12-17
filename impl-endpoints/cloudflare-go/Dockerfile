@@ -12,7 +12,7 @@ FROM alpine:3.12
 
 COPY --from=builder /cf-go /cf-go
 
-COPY client.go /
+COPY runner.go /
 
 COPY run_endpoint.sh /
 RUN chmod +x /run_endpoint.sh

@@ -16,6 +16,8 @@ services:
       memlock: 67108864
     networks:
       - interopnet
+    environment:
+      - TESTCASE=${TESTCASE}
 
   client:
     image: ${CLIENT}
@@ -32,6 +34,8 @@ services:
       memlock: 67108864
     networks:
       - interopnet
+    environment:
+      - TESTCASE=${TESTCASE}
 
 networks:
   interopnet:
