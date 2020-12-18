@@ -5,26 +5,45 @@
 package main
 
 import (
-    "io"
 	"crypto/rand"
+	"io"
+	"log"
 	"math/big"
+	"os"
+	"os/exec"
+	"time"
 )
+
+func fatalIfErr(err error, msg string) {
+	if err != nil {
+		log.Fatalf("ERROR: %s: %s\n", msg, err)
+	}
+}
+
+func fatalIfCmdErr(err error, cmd string, out []byte) {
+	if err != nil {
+		log.Fatalf("ERROR: failed to execute \"%s\": %s\n\n%s\n", cmd, err, out)
+	}
+}
+
+func pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func binaryExists(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
+}
 
 type dsaSignature struct {
 	R, S *big.Int
 }
 
-type ecdsaSignature dsaSignature
-
-const (
-	VersionSSL30 = 0x0300
-	VersionTLS10 = 0x0301
-	VersionTLS11 = 0x0302
-	VersionTLS12 = 0x0303
-	VersionTLS13 = 0x0304
-)
+type ECDSASignature dsaSignature
 
 type signatureAlgorithm uint16
+
 const (
 	// RSASSA-PKCS1-v1_5 algorithms
 	signatureRSAPKCS1WithMD5    signatureAlgorithm = 0x0101
@@ -60,43 +79,34 @@ const (
 	NumBadValues
 )
 
-type SignatureBugs struct {
-	// InvalidSignature specifies that the signature in a ServerKeyExchange
-	// or CertificateVerify message should be invalid.
-	InvalidSignature bool
-
-    // UseLegacySigningAlgorithm, if non-zero, is the signature algorithm
-	// to use when signing in TLS 1.1 and earlier where algorithms are not
-	// negotiated.
-	UseLegacySigningAlgorithm signatureAlgorithm
-
-    // BadECDSAR controls ways in which the 'r' value of an ECDSA signature
+type CertificateBugs struct {
+	// BadECDSAR controls ways in which the 'r' value of an ECDSA signature
 	// can be invalid.
 	BadECDSAR BadValue
 	BadECDSAS BadValue
-
-    // SkipECDSACurveCheck, if true, causes all ECDSA curve checks to be
-	// skipped.
-	SkipECDSACurveCheck bool
-
-    // IgnoreSignatureVersionChecks, if true, causes all signature
-	// algorithms to be enabled at all TLS versions.
-	IgnoreSignatureVersionChecks bool
 }
 
-
-// A Config structure is used to configure a TLS client or server.
-// After one has been passed to a TLS function it must not be
-// modified. A Config may be reused; the tls package will also not
-// modify it.
+// Used to configure x509 certificates and DCs.
 type Config struct {
 	// crypto/rand.
 	// The Reader must be safe for use by multiple goroutines.
 	Rand io.Reader
+
+	Hostnames []string
+
+	ValidFrom time.Time
+	ValidFor  time.Duration
+
+	ForClient bool
+	ForDC     bool
+
 	// Bugs specifies optional misbehaviour to be used for testing other
 	// implementations.
-	Bugs SignatureBugs
+	Bugs CertificateBugs
+
+	SignatureAlgorithm signatureAlgorithm
 }
+
 func (c *Config) rand() io.Reader {
 	r := c.Rand
 	if r == nil {
