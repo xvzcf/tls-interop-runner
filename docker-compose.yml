@@ -3,7 +3,7 @@ version: "2.4"
 services:
   server:
     image: ${SERVER}
-    build: ./impl-endpoints/${SERVER}
+    build: ${SERVER_SRC}/${SERVER}
     container_name: server
     hostname: server
     stdin_open: true
@@ -18,10 +18,11 @@ services:
       - interopnet
     environment:
       - TESTCASE=${TESTCASE}
+      - ROLE=server
 
   client:
     image: ${CLIENT}
-    build: ./impl-endpoints/${CLIENT}
+    build: ${CLIENT_SRC}/${CLIENT}
     container_name: client
     hostname: client
     stdin_open: true
@@ -36,6 +37,7 @@ services:
       - interopnet
     environment:
       - TESTCASE=${TESTCASE}
+      - ROLE=client
 
 networks:
   interopnet:
