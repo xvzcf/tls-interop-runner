@@ -9,7 +9,7 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - ./certs:/certs:ro
+      - ./testdata:/testdata:ro
     cap_add:
       - NET_ADMIN
     ulimits:
@@ -28,7 +28,7 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - ./certs:/certs:ro
+      - ./testdata:/testdata:ro
     cap_add:
       - NET_ADMIN
     ulimits:
