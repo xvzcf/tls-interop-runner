@@ -1,15 +1,14 @@
 #!/bin/sh
 set -e
 
-ROLE=client
-
 if [ "$ROLE" = "client" ]; then
-    # TODO
     echo "Running Cloudflare-Go client."
-    echo "Client params: $SERVER_PARAMS"
+    echo "Client params: $CLIENT_PARAMS"
     echo "Test case: $TESTCASE"
-    /cf-go/bin/go run /runner.go -role=client -test=${TESTCASE}
+    runner -role=client -test=${TESTCASE}
 else
-    true
-    # TODO
+    echo "Running Cloudflare-Go server."
+    echo "Server params: $SERVER_PARAMS"
+    echo "Test case: $TESTCASE"
+    runner -role=server -test=${TESTCASE}
 fi

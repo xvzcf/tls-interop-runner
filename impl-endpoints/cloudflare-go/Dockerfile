@@ -14,6 +14,8 @@ COPY --from=builder /cf-go /cf-go
 
 COPY runner.go /
 
+RUN /cf-go/bin/go build -o /usr/bin/runner runner.go
+
 COPY run_endpoint.sh /
 RUN chmod +x /run_endpoint.sh
 
