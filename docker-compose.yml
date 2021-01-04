@@ -38,6 +38,8 @@ services:
     environment:
       - TESTCASE=${TESTCASE}
       - ROLE=client
+    depends_on:
+      - server
 
 networks:
   interopnet:
