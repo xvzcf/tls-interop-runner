@@ -26,27 +26,3 @@ env SERVER_SRC=./impl-endpoints SERVER=boringssl \
     CLIENT_SRC=./impl-endpoints CLIENT=cloudflare-go \
     TESTCASE=dc docker-compose up
 ```
-
-## Implementations
-
-Available servers:
-1. boringssl
-1. cloudflare-go
-1. rustls
-
-Available clients:
-1. cloudflare-go
-
-## Test cases
-
-Available tests:
-1. dc: The client indicates support for delegated credentials and the server
-   signs the handshake with a delegated credential.
-
-Tests passing:
-
-|                          | **cloudflare-go client** |
-| -------------------------|--------------------------|
-| **boringssl server**     | dc                       |
-| **cloudflare-go server** |                          |
-| **rustls server**        |                          |
