@@ -1,6 +1,25 @@
 version: "2.4"
 
 services:
+  network:
+    image: network
+    build: network
+    container_name: network
+    hostname: network
+    stdin_open: true
+    tty: true
+    cap_add:
+      - NET_ADMIN
+    expose:
+      - "57832"
+    networks:
+      clientnet:
+        ipv4_address: 193.167.0.2
+        ipv6_address: fd00:cafe:cafe:0::2
+      servernet:
+        ipv4_address: 193.167.100.2
+        ipv6_address: fd00:cafe:cafe:100::2
+
   server:
     image: ${SERVER}
     build: ${SERVER_SRC}/${SERVER}
@@ -14,11 +33,17 @@ services:
       - NET_ADMIN
     ulimits:
       memlock: 67108864
-    networks:
-      - interopnet
     environment:
       - TESTCASE=${TESTCASE}
       - ROLE=server
+    depends_on:
+      - network
+    networks:
+      servernet:
+        ipv4_address: 193.167.100.100
+        ipv6_address: fd00:cafe:cafe:100::100
+    extra_hosts:
+      - "client:193.167.0.100"
 
   client:
     image: ${CLIENT}
@@ -33,18 +58,36 @@ services:
       - NET_ADMIN
     ulimits:
       memlock: 67108864
-    networks:
-      - interopnet
     environment:
       - TESTCASE=${TESTCASE}
       - ROLE=client
     depends_on:
+      - network
       - server
+    networks:
+      clientnet:
+        ipv4_address: 193.167.0.100
+        ipv6_address: fd00:cafe:cafe:0::100
+    extra_hosts:
+      - "server:193.167.100.100"
 
 networks:
-  interopnet:
+  clientnet:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: 'false'
     enable_ipv6: true
     ipam:
       config:
         - subnet: 193.167.0.0/24
         - subnet: fd00:cafe:cafe:0::/64
+  servernet:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: 'false'
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 193.167.100.0/24
+        - subnet: fd00:cafe:cafe:100::/64
+

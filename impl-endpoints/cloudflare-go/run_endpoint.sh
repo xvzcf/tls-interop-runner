@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+/setup.sh
+
 if [ "$ROLE" = "client" ]; then
     echo "Running Cloudflare-Go client."
     echo "Client params: $CLIENT_PARAMS"

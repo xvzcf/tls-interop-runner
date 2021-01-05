@@ -1,0 +1,18 @@
+--- wscript	2021-01-04 14:26:22.000000000 -0500
++++ wscript-new	2021-01-04 14:25:25.000000000 -0500
+@@ -804,12 +804,14 @@
+ 
+     try:
+         for filename in os.listdir("scratch"):
+-            if filename.startswith('.') or filename == 'CVS':
++            if filename.startswith('.') or filename == 'CVS' or filename == 'helper':
+                 continue
+             if os.path.isdir(os.path.join("scratch", filename)):
+                 obj = bld.create_ns3_program(filename, all_modules)
+                 obj.path = obj.path.find_dir('scratch').find_dir(filename)
+                 obj.source = obj.path.ant_glob('*.cc')
++                obj.source.append('../helper/network-simulator-helper.cc')
++                obj.source.append('../helper/point-to-point-helper.cc')
+                 obj.target = filename
+                 obj.name = obj.target
+                 obj.install_path = None
