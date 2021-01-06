@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	"github.com/cloudflare/circl/hpke"
 )
 
 const usage = `Usage:
@@ -22,6 +24,7 @@ const usage = `Usage:
     $ cert-tool -make-root -out tmp/CA.crt -key-out tmp/CA.key
     $ cert-tool -make-intermediate -cert-in tmp/CA.crt -key-in tmp/CA.key -out tmp/int.crt -key-out tmp/int.key
     $ cert-tool -make-dc -cert-in tmp/int.crt -key-in tmp/int.key -out tmp/dc.txt
+    $ cert-tool -make-ech-key -cert-in tmp/int.crt -out tmp/ech_configs.txt -key-out tmp/ech_key.txt
 
     Note: This is a barebones CLI intended for basic usage/debugging.
 `
@@ -32,6 +35,7 @@ func main() {
 		makeRootCertFlag         = flag.Bool("make-root", false, "")
 		makeIntermediateCertFlag = flag.Bool("make-intermediate", false, "")
 		makeDCFlag               = flag.Bool("make-dc", false, "")
+		makeECHKeyFlag           = flag.Bool("make-ech-key", false, "")
 		helpFlag                 = flag.Bool("help", false, "")
 		certInFlag               = flag.String("cert-in", "", "")
 		keyInFlag                = flag.String("key-in", "", "")
@@ -56,6 +60,7 @@ func main() {
 		makeRootCert:         *makeRootCertFlag,
 		makeIntermediateCert: *makeIntermediateCertFlag,
 		makeDC:               *makeDCFlag,
+		makeECHKey:           *makeECHKeyFlag,
 		inCertPath:           *certInFlag, inKeyPath: *keyInFlag,
 		outPath: *outFlag, outKeyPath: *keyOutFlag,
 	}).Run()
@@ -65,6 +70,7 @@ type certTool struct {
 	makeRootCert          bool
 	makeIntermediateCert  bool
 	makeDC                bool
+	makeECHKey            bool
 	inCertPath, inKeyPath string
 	outPath, outKeyPath   string
 }
@@ -98,6 +104,23 @@ func (ct *certTool) Run() {
 			&Config{},
 			ct.inCertPath, ct.inKeyPath, ct.outPath)
 		return
+	} else if ct.makeECHKey {
+		makeECHKey(
+			ECHConfigTemplate{
+				Version: ECHVersionDraft09,
+				KemId:   uint16(hpke.KEM_X25519_HKDF_SHA256),
+				KdfIds: []uint16{
+					uint16(hpke.KDF_HKDF_SHA256),
+				},
+				AeadIds: []uint16{
+					uint16(hpke.AEAD_AES128GCM),
+				},
+				MaximumNameLength: 0,
+			},
+			ct.inCertPath,
+			ct.outPath,
+			ct.outKeyPath,
+		)
 	} else {
 		fmt.Fprint(flag.CommandLine.Output(), usage)
 		return
