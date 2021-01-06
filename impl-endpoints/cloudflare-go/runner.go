@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"errors"
 	"flag"
 	"io/ioutil"
@@ -11,24 +12,6 @@ import (
 	"os"
 )
 
-func createBaseClientConfig() (*tls.Config, error) {
-	certPool := x509.NewCertPool()
-	pem, err := ioutil.ReadFile("/testdata/root.crt")
-	if err != nil {
-		return nil, err
-	}
-	certPool.AppendCertsFromPEM(pem)
-	return &tls.Config{RootCAs: certPool}, nil
-}
-
-func createBaseServerConfig() (*tls.Config, error) {
-	cert, err := tls.LoadX509KeyPair("/testdata/example.crt", "/testdata/example.key")
-	if err != nil {
-		return nil, err
-	}
-	return &tls.Config{Certificates: []tls.Certificate{cert}}, nil
-}
-
 type testCase interface {
 	ClientConfig() (*tls.Config, error)
 	ClientConnectionHandler(*tls.Conn) error
@@ -36,41 +19,151 @@ type testCase interface {
 	ServerConnectionHandler(*tls.Conn) error
 }
 
-type delegatedCredentialTestCase struct {
-}
+var baseServerConfig, baseClientConfig *tls.Config
 
-func (c delegatedCredentialTestCase) ClientConfig() (*tls.Config, error) {
-	config, err := createBaseClientConfig()
+func init() {
+	// Setup the base client configuration.
+	pem, err := ioutil.ReadFile("/testdata/root.crt")
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
 
+	certPool := x509.NewCertPool()
+	certPool.AppendCertsFromPEM(pem)
+	baseClientConfig = &tls.Config{
+		RootCAs: certPool,
+	}
+
+	// Setup the base server configuration.
+	serverCert, err := tls.LoadX509KeyPair(
+		"/testdata/example.crt",
+		"/testdata/example.key",
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	clientFacingCert, err := tls.LoadX509KeyPair(
+		"/testdata/client_facing.crt",
+		"/testdata/client_facing.key",
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	baseServerConfig = &tls.Config{
+		Certificates: []tls.Certificate{
+			serverCert,
+			clientFacingCert,
+		},
+	}
+}
+
+type testCaseDC struct{}
+
+func (t testCaseDC) ClientConfig() (*tls.Config, error) {
+	config := baseClientConfig.Clone()
 	config.SupportDelegatedCredential = true
 	return config, nil
 }
 
-func (c delegatedCredentialTestCase) ClientConnectionHandler(conn *tls.Conn) error {
+func (t testCaseDC) ServerConfig() (*tls.Config, error) {
+	config := baseClientConfig.Clone()
+	return config, nil
+}
+
+func (t testCaseDC) ClientConnectionHandler(conn *tls.Conn) error {
 	if conn.ConnectionState().VerifiedDC == nil {
 		return errors.New("Failed to verify a delegated credential")
 	}
 	return nil
 }
 
-func (c delegatedCredentialTestCase) ServerConfig() (*tls.Config, error) {
-	config, err := createBaseServerConfig()
-	if err != nil {
-		return nil, err
-	}
-	return config, nil
-}
-
-func (c delegatedCredentialTestCase) ServerConnectionHandler(conn *tls.Conn) error {
+func (t testCaseDC) ServerConnectionHandler(conn *tls.Conn) error {
 	// TODO
 	return errors.New("NOT IMPLEMENTED")
 }
 
+type echTestResult struct {
+	serverStatus tls.EXP_EventECHServerStatus
+}
+
+func (r *echTestResult) eventHandler(event tls.EXP_Event) {
+	switch e := event.(type) {
+	case tls.EXP_EventECHServerStatus:
+		r.serverStatus = e
+	}
+}
+
+type testCaseECHAccept struct{}
+
+func (t testCaseECHAccept) ClientConfig() (*tls.Config, error) {
+	base64ECHConfigs, err := ioutil.ReadFile("/testdata/ech_configs")
+	if err != nil {
+		return nil, err
+	}
+
+	rawECHConfigs, err := base64.StdEncoding.DecodeString(string(base64ECHConfigs))
+	if err != nil {
+		return nil, err
+	}
+
+	echConfigs, err := tls.UnmarshalECHConfigs(rawECHConfigs)
+	if err != nil {
+		return nil, err
+	}
+
+	config := baseClientConfig.Clone()
+	config.ClientECHConfigs = echConfigs
+	config.ECHEnabled = true
+	return config, nil
+}
+
+func (t testCaseECHAccept) ServerConfig() (*tls.Config, error) {
+	base64ECHKeys, err := ioutil.ReadFile("/testdata/ech_key")
+	if err != nil {
+		return nil, err
+	}
+
+	rawECHKeys, err := base64.StdEncoding.DecodeString(string(base64ECHKeys))
+	if err != nil {
+		return nil, err
+	}
+
+	echKeys, err := tls.EXP_UnmarshalECHKeys(rawECHKeys)
+	if err != nil {
+		return nil, err
+	}
+
+	echProvider, err := tls.EXP_NewECHKeySet(echKeys)
+	if err != nil {
+		return nil, err
+	}
+
+	config := baseServerConfig.Clone()
+	config.ServerECHProvider = echProvider
+	config.ECHEnabled = true
+	return config, nil
+}
+
+func (t testCaseECHAccept) connectionHandler(conn *tls.Conn) error {
+	if !conn.ConnectionState().ECHAccepted {
+		return errors.New("ECH not accepted")
+	}
+	return nil
+}
+
+func (t testCaseECHAccept) ClientConnectionHandler(conn *tls.Conn) error {
+	return t.connectionHandler(conn)
+}
+
+func (t testCaseECHAccept) ServerConnectionHandler(conn *tls.Conn) error {
+	return t.connectionHandler(conn)
+}
+
 var testCaseHandlers = map[string]testCase{
-	"dc": delegatedCredentialTestCase{},
+	"dc":         testCaseDC{},
+	"ech-accept": testCaseECHAccept{},
 }
 
 func doClient(t testCase) error {
@@ -84,8 +177,8 @@ func doClient(t testCase) error {
 		return err
 	}
 	defer c.Close()
-	log.Print("Handshake completed")
 
+	log.Print("Handshake completed")
 	return t.ClientConnectionHandler(c)
 }
 
@@ -113,8 +206,8 @@ func doServer(t testCase) error {
 		return err
 	}
 	defer s.Close()
-	log.Print("Handshake completed")
 
+	log.Print("Handshake completed")
 	return t.ServerConnectionHandler(s)
 }
 
@@ -125,7 +218,7 @@ func main() {
 
 	handler, ok := testCaseHandlers[*testCase]
 	if !ok {
-		// Skip this test case
+		// Skip this test case.
 		os.Exit(64)
 	}
 

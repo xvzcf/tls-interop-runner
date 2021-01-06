@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	ECHVersionDraft09 uint16 = 0xff09 // draft-ietf-tls-esni-09
+	ECHVersionDraft09 uint16 = 0xfe09 // draft-ietf-tls-esni-09
 )
 
 // ECHConfigTemplate defines the parameters for generating an ECH config and
@@ -83,7 +83,7 @@ func GenerateECHKey(template ECHConfigTemplate) (*ECHKey, error) {
 
 	secretKey, err := sk.MarshalBinary()
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal KEM secert key: %s", err)
+		return nil, fmt.Errorf("failed to marshal KEM secret key: %s", err)
 	}
 
 	var c cryptobyte.Builder
