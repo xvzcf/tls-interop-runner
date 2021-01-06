@@ -13,7 +13,7 @@ import (
 
 func createBaseClientConfig() (*tls.Config, error) {
 	certPool := x509.NewCertPool()
-	pem, err := ioutil.ReadFile("/certs/rootCA.pem")
+	pem, err := ioutil.ReadFile("/testdata/root.crt")
 	if err != nil {
 		return nil, err
 	}
@@ -22,7 +22,7 @@ func createBaseClientConfig() (*tls.Config, error) {
 }
 
 func createBaseServerConfig() (*tls.Config, error) {
-	cert, err := tls.LoadX509KeyPair("/certs/server.cert", "/certs/server.key")
+	cert, err := tls.LoadX509KeyPair("/testdata/example.crt", "/testdata/example.key")
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func doClient(t testCase) error {
 		return err
 	}
 
-	c, err := tls.Dial("tcp", "server:4433", config)
+	c, err := tls.Dial("tcp", "example.com:4433", config)
 	if err != nil {
 		return err
 	}

@@ -1,16 +1,24 @@
-CERT_TOOL_FILES = $(wildcard cert-tool-src/*.go)
+TESTDATA_DIR = testdata
+BIN_DIR = bin
+UTIL = ${BIN_DIR}/util
+UTIL_FILES = $(wildcard cmd/util/*.go)
 
-cert-tool: $(CERT_TOOL_FILES)
-	go build -o cert-tool $^
+util: $(CERT_TOOL_FILES)
+	mkdir -p ${BIN_DIR}
+	go build -o ${UTIL} ./cmd/util/...
 
-.PHONY: certs
-certs: cert-tool
-	rm -rf certs && mkdir certs
-	./cert-tool -make-root -out certs/rootCA.pem -key-out certs/rootCA.key
-	./cert-tool -make-intermediate -cert-in certs/rootCA.pem -key-in certs/rootCA.key -out certs/server.cert -key-out certs/server.key
-
-dc: certs/server.cert certs/server.key cert-tool
-	./cert-tool -make-dc -cert-in certs/server.cert -key-in certs/server.key -out certs/dc.txt
+.PHONY: testdata
+testdata: util
+	mkdir -p ${TESTDATA_DIR}
+	${UTIL} -make-root -out ${TESTDATA_DIR}/root.crt -key-out ${TESTDATA_DIR}/root.key -host root.com
+	${UTIL} -make-intermediate -cert-in ${TESTDATA_DIR}/root.crt -key-in ${TESTDATA_DIR}/root.key -out ${TESTDATA_DIR}/example.crt -key-out ${TESTDATA_DIR}/example.key -host example.com
+	${UTIL} -make-intermediate -cert-in ${TESTDATA_DIR}/root.crt -key-in ${TESTDATA_DIR}/root.key -out ${TESTDATA_DIR}/client_facing.crt -key-out ${TESTDATA_DIR}/client_facing.key -host client-facing.com
+	${UTIL} -make-dc -cert-in ${TESTDATA_DIR}/example.crt -key-in ${TESTDATA_DIR}/example.key -out ${TESTDATA_DIR}/dc.txt
+	${UTIL} -make-ech -cert-in ${TESTDATA_DIR}/client_facing.crt -out ${TESTDATA_DIR}/ech_configs -key-out ${TESTDATA_DIR}/ech_key
 
 clean:
+	rm -fr ${BIN_DIR}
+	rm -fr ${TESTDATA_DIR}
+
+clean-docker:
 	docker builder prune

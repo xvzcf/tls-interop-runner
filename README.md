@@ -24,8 +24,7 @@ repository is in your $GOPATH (e.g.,
 ~/go/src/github.com/xvzcf/tls-interop-runner).
 
 ```
-make certs
-make dc
+make testdata
 ```
 
 You're now ready to run tests. The test case is also specified by setting an

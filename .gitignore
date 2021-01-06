@@ -1,5 +1,3 @@
 .*.swp
-certs/
-cert-tool
-cert-tool-src/cert-tool-src
-*.pem
+bin/
+testdata/
