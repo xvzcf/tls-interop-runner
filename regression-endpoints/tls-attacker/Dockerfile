@@ -1,11 +1,11 @@
 FROM ubuntu:latest
 
-RUN apt update -y
 RUN apt-get update && \
     apt-get install -y openjdk-8-jdk && \
     apt-get install -y ant && \
     apt-get install maven -y && \
     apt-get install git -y && \
+    apt-get install -y net-tools tcpdump ethtool iproute2 && \
     apt-get clean;
 
 # RUN update-alternatives --config java
@@ -29,6 +29,9 @@ RUN mvn clean install -DskipTests=true
 WORKDIR /tls-attacker/resources
 RUN chmod +x keygen.sh
 RUN ./keygen.sh && cp *.pem ../apps
+
+COPY setup.sh /setup.sh
+RUN chmod +x /setup.sh
 
 COPY run_endpoint.sh /run_endpoint.sh
 RUN chmod +x /run_endpoint.sh

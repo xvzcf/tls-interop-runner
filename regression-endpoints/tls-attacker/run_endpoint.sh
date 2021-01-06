@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+/setup.sh
+
 if [ "$ROLE" = "client" ]; then
     echo "Running tls-attacker client."
     echo "Server params: $CLIENT_PARAMS"

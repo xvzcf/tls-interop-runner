@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+/setup.sh
+
 echo "Using commit:" "$(cat commit.txt)"
 
 if [ "$ROLE" = "client" ]; then
