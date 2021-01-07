@@ -57,6 +57,9 @@ func main() {
 	if *makeDC && (*inCertPath == "" || *outPath == "" || *inKeyPath == "") {
 		log.Fatalln("ERROR: -make-dc requires -cert-in, -key-in, -out")
 	}
+	if *makeECH && (*hostName == "") {
+		log.Fatalln("ERROR: -make-ech requires -host")
+	}
 
 	if *makeRootCert {
 		makeRootCertificate(
@@ -97,8 +100,9 @@ func main() {
 	} else if *makeECH {
 		makeECHKey(
 			ECHConfigTemplate{
-				Version: ECHVersionDraft09,
-				KemId:   uint16(hpke.KEM_X25519_HKDF_SHA256),
+				PublicName: *hostName,
+				Version:    ECHVersionDraft09,
+				KemId:      uint16(hpke.KEM_X25519_HKDF_SHA256),
 				KdfIds: []uint16{
 					uint16(hpke.KDF_HKDF_SHA256),
 				},
@@ -107,7 +111,6 @@ func main() {
 				},
 				MaximumNameLength: 0,
 			},
-			*inCertPath,
 			*outPath,
 			*outKeyPath,
 		)

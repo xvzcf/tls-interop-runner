@@ -14,7 +14,7 @@ testdata: util
 	${UTIL} -make-intermediate -cert-in ${TESTDATA_DIR}/root.crt -key-in ${TESTDATA_DIR}/root.key -out ${TESTDATA_DIR}/example.crt -key-out ${TESTDATA_DIR}/example.key -host example.com
 	${UTIL} -make-intermediate -cert-in ${TESTDATA_DIR}/root.crt -key-in ${TESTDATA_DIR}/root.key -out ${TESTDATA_DIR}/client_facing.crt -key-out ${TESTDATA_DIR}/client_facing.key -host client-facing.com
 	${UTIL} -make-dc -cert-in ${TESTDATA_DIR}/example.crt -key-in ${TESTDATA_DIR}/example.key -out ${TESTDATA_DIR}/dc.txt
-	${UTIL} -make-ech -cert-in ${TESTDATA_DIR}/client_facing.crt -out ${TESTDATA_DIR}/ech_configs -key-out ${TESTDATA_DIR}/ech_key
+	${UTIL} -make-ech -out ${TESTDATA_DIR}/ech_configs -key-out ${TESTDATA_DIR}/ech_key -host client-facing.com
 
 clean:
 	rm -fr ${BIN_DIR}
