@@ -12,7 +12,9 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"encoding/base64"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -20,6 +22,7 @@ import (
 	"net"
 	"net/mail"
 	"net/url"
+	"os"
 	"path/filepath"
 )
 
@@ -77,7 +80,7 @@ func makeRootCertificate(config *Config, outPath string, outKeyPath string) {
 	fatalIfErr(err, "failed to encode CA key")
 
 	err = ioutil.WriteFile(outKeyPath, pem.EncodeToMemory(
-		&pem.Block{Type: "PRIVATE KEY", Bytes: privDER}), 0400)
+		&pem.Block{Type: "PRIVATE KEY", Bytes: privDER}), 0600)
 	fatalIfErr(err, "failed to write CA key")
 
 	err = ioutil.WriteFile(outPath, pem.EncodeToMemory(
@@ -259,4 +262,58 @@ func makeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPat
 	err = ioutil.WriteFile(outPath, []byte(dcSerialized), 0644)
 	fatalIfErr(err, "failed to save DC")
 	log.Printf("\nThe generated DC (format: DC, privkey) is at \"%s\" \n\n", outPath)
+}
+
+// makeECHKey generates an ECH config and corresponding key, writing the key to
+// outKeyPath and the config to outPath. The config is encoded as an ECHConfigs
+// structure as specified by draft-ietf-tls-esni-09 (i.e., it is prefixed by
+// 16-bit integer that encodes its length). This is the format as it is consumed
+// by the client.
+//
+// The first DNS name of certificate inCertPath is used as the ECH config's
+// public name. The remaining parameters of the ECH config are specified by the
+// template.
+func makeECHKey(template ECHConfigTemplate, inCertPath, outPath, outKeyPath string) {
+	certParseErrMsg := "failed to parse input certificate"
+	keyGenErrMsg := "failed to generate ECH key"
+
+	// Load the certificate of the client-facing server.
+	clientFacingCertPEMBlock, err := ioutil.ReadFile(filepath.Join(inCertPath))
+	fatalIfErr(err, certParseErrMsg)
+	clientFacingCertDERBlock, _ := pem.Decode(clientFacingCertPEMBlock)
+	if clientFacingCertDERBlock == nil || clientFacingCertDERBlock.Type != "CERTIFICATE" {
+		fatalIfErr(errors.New("PEM decoding failed"), certParseErrMsg)
+	}
+	clientFacingCert, err := x509.ParseCertificate(clientFacingCertDERBlock.Bytes)
+	fatalIfErr(err, certParseErrMsg)
+
+	// Generate the ECH config and corresponding key, using the first DNS name
+	// specified by the client-facing certificate as the public name.
+	//
+	// TODO(cjpatton): Assert that clientFAcingCert.DNSNames[0] is a valid SNI
+	// (e.g., not something like *.example.com).
+	if len(clientFacingCert.DNSNames) == 0 {
+		fatalIfErr(errors.New("input certificate does not specify a DNS name"), keyGenErrMsg)
+	}
+	template.PublicName = clientFacingCert.DNSNames[0]
+	key, err := GenerateECHKey(template)
+	fatalIfErr(err, keyGenErrMsg)
+
+	// Write the key to disk.
+	outKey, err := os.OpenFile(outKeyPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	fatalIfErr(err, keyGenErrMsg)
+	defer outKey.Close()
+	outKeyEncoder := base64.NewEncoder(base64.StdEncoding, outKey)
+	defer outKeyEncoder.Close()
+	_, err = outKeyEncoder.Write(key.Marshal())
+	fatalIfErr(err, keyGenErrMsg)
+
+	// Write the config to disk.
+	out, err := os.Create(outPath)
+	fatalIfErr(err, keyGenErrMsg)
+	defer out.Close()
+	outEncoder := base64.NewEncoder(base64.StdEncoding, out)
+	defer outEncoder.Close()
+	_, err = outEncoder.Write(MarshalECHConfigs([]ECHKey{*key}))
+	fatalIfErr(err, keyGenErrMsg)
 }
