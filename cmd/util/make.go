@@ -14,7 +14,6 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -269,33 +268,15 @@ func makeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPat
 // structure as specified by draft-ietf-tls-esni-09 (i.e., it is prefixed by
 // 16-bit integer that encodes its length). This is the format as it is consumed
 // by the client.
-//
-// The first DNS name of certificate inCertPath is used as the ECH config's
-// public name. The remaining parameters of the ECH config are specified by the
-// template.
-func makeECHKey(template ECHConfigTemplate, inCertPath, outPath, outKeyPath string) {
-	certParseErrMsg := "failed to parse input certificate"
+func makeECHKey(template ECHConfigTemplate, outPath, outKeyPath string) {
 	keyGenErrMsg := "failed to generate ECH key"
 
-	// Load the certificate of the client-facing server.
-	clientFacingCertPEMBlock, err := ioutil.ReadFile(filepath.Join(inCertPath))
-	fatalIfErr(err, certParseErrMsg)
-	clientFacingCertDERBlock, _ := pem.Decode(clientFacingCertPEMBlock)
-	if clientFacingCertDERBlock == nil || clientFacingCertDERBlock.Type != "CERTIFICATE" {
-		fatalIfErr(errors.New("PEM decoding failed"), certParseErrMsg)
+	// Ensure that the public name can be used as the SNI.
+	if !isDomainName(template.PublicName) {
+		fatalIfErr(fmt.Errorf("'%s' is not a fully qualified domain name", template.PublicName), keyGenErrMsg)
 	}
-	clientFacingCert, err := x509.ParseCertificate(clientFacingCertDERBlock.Bytes)
-	fatalIfErr(err, certParseErrMsg)
 
-	// Generate the ECH config and corresponding key, using the first DNS name
-	// specified by the client-facing certificate as the public name.
-	//
-	// TODO(cjpatton): Assert that clientFAcingCert.DNSNames[0] is a valid SNI
-	// (e.g., not something like *.example.com).
-	if len(clientFacingCert.DNSNames) == 0 {
-		fatalIfErr(errors.New("input certificate does not specify a DNS name"), keyGenErrMsg)
-	}
-	template.PublicName = clientFacingCert.DNSNames[0]
+	// Generate ECH config and key.
 	key, err := GenerateECHKey(template)
 	fatalIfErr(err, keyGenErrMsg)
 
@@ -316,4 +297,64 @@ func makeECHKey(template ECHConfigTemplate, inCertPath, outPath, outKeyPath stri
 	defer outEncoder.Close()
 	_, err = outEncoder.Write(MarshalECHConfigs([]ECHKey{*key}))
 	fatalIfErr(err, keyGenErrMsg)
+}
+
+// isDomainName checks if a string is a presentation-format domain name
+// (currently restricted to hostname-compatible "preferred name" LDH labels and
+// SRV-like "underscore labels"; see golang.org/issue/12421).
+//
+// NOTE(cjpatton): This was copied verbatim from src/net/dnsclient.go in the
+// Go standard library.
+func isDomainName(s string) bool {
+	// See RFC 1035, RFC 3696.
+	// Presentation format has dots before every label except the first, and the
+	// terminal empty label is optional here because we assume fully-qualified
+	// (absolute) input. We must therefore reserve space for the first and last
+	// labels' length octets in wire format, where they are necessary and the
+	// maximum total length is 255.
+	// So our _effective_ maximum is 253, but 254 is not rejected if the last
+	// character is a dot.
+	l := len(s)
+	if l == 0 || l > 254 || l == 254 && s[l-1] != '.' {
+		return false
+	}
+
+	last := byte('.')
+	nonNumeric := false // true once we've seen a letter or hyphen
+	partlen := 0
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		default:
+			return false
+		case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || c == '_':
+			nonNumeric = true
+			partlen++
+		case '0' <= c && c <= '9':
+			// fine
+			partlen++
+		case c == '-':
+			// Byte before dash cannot be dot.
+			if last == '.' {
+				return false
+			}
+			partlen++
+			nonNumeric = true
+		case c == '.':
+			// Byte before dot cannot be dot, dash.
+			if last == '.' || last == '-' {
+				return false
+			}
+			if partlen > 63 || partlen == 0 {
+				return false
+			}
+			partlen = 0
+		}
+		last = c
+	}
+	if last == '-' || partlen > 63 {
+		return false
+	}
+
+	return nonNumeric
 }
