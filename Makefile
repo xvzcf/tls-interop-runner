@@ -3,8 +3,11 @@ BIN_DIR = bin
 UTIL = ${BIN_DIR}/util
 UTIL_FILES = $(wildcard cmd/util/*.go)
 
+all: testdata
+
 util: $(CERT_TOOL_FILES)
 	mkdir -p ${BIN_DIR}
+	go get ./cmd/util/...
 	go build -o ${UTIL} ./cmd/util/...
 
 .PHONY: testdata
