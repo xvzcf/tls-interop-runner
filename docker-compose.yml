@@ -8,6 +8,8 @@ services:
     hostname: network
     stdin_open: true
     tty: true
+    volumes:
+      - ./testdata/logs:/logs
     cap_add:
       - NET_ADMIN
     expose:
@@ -30,6 +32,7 @@ services:
     volumes:
       - ./testdata:/testdata:ro
       - ./network/endpoint-route-setup.sh:/setup-routes.sh:ro
+      - ./testdata/logs:/logs
     cap_add:
       - NET_ADMIN
     ulimits:
@@ -56,6 +59,7 @@ services:
     volumes:
       - ./testdata:/testdata:ro
       - ./network/endpoint-route-setup.sh:/setup-routes.sh:ro
+      - ./testdata/logs:/logs
     cap_add:
       - NET_ADMIN
     ulimits:

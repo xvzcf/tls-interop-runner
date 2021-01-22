@@ -3,12 +3,20 @@ BIN_DIR = bin
 UTIL = ${BIN_DIR}/util
 UTIL_SRCS = $(wildcard cmd/util/*.go)
 
+VALIDATEPCAP = ${BIN_DIR}/validatepcap
+VALIDATEPCAP_SRCS = $(wildcard cmd/validatepcap/*.go)
+
 all: testdata
 
 util: $(UTIL_SRCS)
 	mkdir -p ${BIN_DIR}
 	go get ./cmd/util/...
 	go build -o ${UTIL} ./cmd/util/...
+
+validatepcap: $(VALIDATEPCAP_SRCS)
+	mkdir -p ${BIN_DIR}
+	go get ./cmd/validatepcap/...
+	go build -o ${VALIDATEPCAP} ./cmd/validatepcap/...
 
 .PHONY: testdata
 testdata: util
@@ -24,4 +32,5 @@ clean:
 	rm -fr ${TESTDATA_DIR}
 
 clean-docker:
+	docker network prune
 	docker builder prune

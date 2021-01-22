@@ -28,10 +28,15 @@ func init() {
 		log.Fatal(err)
 	}
 
+	clientKeyLog, err := os.OpenFile("/logs/client_keylog", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		log.Fatal(err)
+	}
 	certPool := x509.NewCertPool()
 	certPool.AppendCertsFromPEM(pem)
 	baseClientConfig = &tls.Config{
 		RootCAs: certPool,
+		KeyLogWriter: clientKeyLog,
 	}
 
 	// Setup the base server configuration.
@@ -51,11 +56,16 @@ func init() {
 		log.Fatal(err)
 	}
 
+	serverKeyLog, err := os.OpenFile("/logs/server_keylog", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		log.Fatal(err)
+	}
 	baseServerConfig = &tls.Config{
 		Certificates: []tls.Certificate{
 			serverCert,
 			clientFacingCert,
 		},
+		KeyLogWriter: serverKeyLog,
 	}
 }
 
