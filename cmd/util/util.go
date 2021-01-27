@@ -24,7 +24,7 @@ const usage = `Usage:
     $ util -make-root -out root.crt -key-out root.key -host root.com
     $ util -make-intermediate -cert-in parent.crt -key-in parent.key -out child.crt -key-out child.key -host example.com
     $ util -make-dc -cert-in leaf.crt -key-in leaf.key -out dc.txt
-    $ util -make-ech-key -cert-in client_facing.crt -out ech_configs -key-out ech_key
+    $ util -make-ech-key -cert-in client-facing.crt -out ech_configs -key-out ech_key
 
     Note: This is a barebones CLI intended for basic usage/debugging.
 `
