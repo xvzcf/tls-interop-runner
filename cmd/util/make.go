@@ -106,7 +106,7 @@ func makeIntermediateCertificate(config *Config, inCertPath string, inKeyPath st
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			Organization:       []string{"tls-interop-runner development certificate"},
-			OrganizationalUnit: []string{"tls-interop-runner"},
+			OrganizationalUnit: []string{outPath},
 		},
 
 		NotBefore: config.ValidFrom,
