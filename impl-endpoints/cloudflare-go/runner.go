@@ -44,8 +44,8 @@ func init() {
 	}
 
 	clientFacingCert, err := tls.LoadX509KeyPair(
-		"/testdata/client_facing.crt",
-		"/testdata/client_facing.key",
+		"/testdata/client-facing.crt",
+		"/testdata/client-facing.key",
 	)
 	if err != nil {
 		log.Fatal(err)
