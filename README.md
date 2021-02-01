@@ -12,7 +12,7 @@ Runner](https://github.com/marten-seemann/quic-interop-runner).
 You will need to have golang installed.
 
 You will need to clone this repository on the `src` directory of your
-`$GOPATH`. To know your `$GOPATH`, use `go env`.
+`$GOPATH`. To learn your `$GOPATH`, use `go env`.
 
 Tests are run with `docker-compose`. To run a test, you must first build the
 endpoints. For example, to build a boringSSL server and Cloudflare-Go client:
