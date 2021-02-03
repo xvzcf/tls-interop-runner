@@ -29,6 +29,7 @@ services:
     tty: true
     volumes:
       - ./testdata:/testdata:ro
+      - ./network/endpoint-route-setup.sh:/setup-routes.sh:ro
     cap_add:
       - NET_ADMIN
     ulimits:
@@ -54,6 +55,7 @@ services:
     tty: true
     volumes:
       - ./testdata:/testdata:ro
+      - ./network/endpoint-route-setup.sh:/setup-routes.sh:ro
     cap_add:
       - NET_ADMIN
     ulimits:
