@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-/setup.sh
+sh /setup-routes.sh
 
 DB_DIR="db"
 P12_PASS="runner"

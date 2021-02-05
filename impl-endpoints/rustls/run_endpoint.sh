@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-/setup.sh
+sh /setup-routes.sh
 
 echo "Using commit:" "$(cat commit.txt)"
 

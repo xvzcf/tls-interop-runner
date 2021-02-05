@@ -14,9 +14,6 @@ RUN apt-get update && \
 COPY --from=builder /commit.txt /
 COPY --from=builder /rustls/target/release/examples/* /usr/bin/
 
-COPY setup.sh /
-RUN chmod +x /setup.sh
-
 COPY run_endpoint.sh /run_endpoint.sh
 RUN chmod +x /run_endpoint.sh
 

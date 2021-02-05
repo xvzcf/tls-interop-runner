@@ -18,9 +18,6 @@ COPY runner.go /
 
 RUN /cf-go/bin/go build -o /usr/bin/runner runner.go
 
-COPY setup.sh /
-RUN chmod +x /setup.sh
-
 COPY run_endpoint.sh /
 RUN chmod +x /run_endpoint.sh
 

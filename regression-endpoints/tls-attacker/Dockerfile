@@ -30,9 +30,6 @@ WORKDIR /tls-attacker/resources
 RUN chmod +x keygen.sh
 RUN ./keygen.sh && cp *.pem ../apps
 
-COPY setup.sh /setup.sh
-RUN chmod +x /setup.sh
-
 COPY run_endpoint.sh /run_endpoint.sh
 RUN chmod +x /run_endpoint.sh
 

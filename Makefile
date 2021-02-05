@@ -1,11 +1,11 @@
 TESTDATA_DIR = testdata
 BIN_DIR = bin
 UTIL = ${BIN_DIR}/util
-UTIL_FILES = $(wildcard cmd/util/*.go)
+UTIL_SRCS = $(wildcard cmd/util/*.go)
 
 all: testdata
 
-util: $(CERT_TOOL_FILES)
+util: $(UTIL_SRCS)
 	mkdir -p ${BIN_DIR}
 	go get ./cmd/util/...
 	go build -o ${UTIL} ./cmd/util/...

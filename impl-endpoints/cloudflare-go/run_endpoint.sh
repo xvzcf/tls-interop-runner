@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-/setup.sh
+sh /setup-routes.sh
 
 if [ "$ROLE" = "client" ]; then
     echo "Running Cloudflare-Go client."

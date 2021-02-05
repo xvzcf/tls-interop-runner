@@ -15,9 +15,6 @@ RUN apt-get update && \
 
 COPY --from=builder /boringssl/build/tool/bssl /usr/bin/
 
-COPY setup.sh /setup.sh
-RUN chmod +x /setup.sh
-
 COPY run_endpoint.sh /run_endpoint.sh
 RUN chmod +x /run_endpoint.sh
 
