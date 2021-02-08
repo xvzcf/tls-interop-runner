@@ -49,11 +49,20 @@ func main() {
 		log.Fatalf("Requires tshark with version >= 3.4.0.")
 	}
 
-	transcript := processPcap(tsharkPath, *pcapPath, *keylogPath)
+	transcript, err := parsePCap(tsharkPath, *pcapPath, *keylogPath)
+	fatalIfErr(err, "Could not parse supplied PCap.")
 
-	if !isTranscriptValid(transcript, *testcase) {
-		log.Printf("Testcase %s failed.\n", *testcase)
+	err = validateTranscript(transcript, *testcase)
+	if err != nil {
+		log.Fatalf("Testcase %s failed: %s", *testcase, err)
 	} else {
-		log.Printf("Testcase %s passed.\n", *testcase)
+		fmt.Printf("Testcase %s passed.\n", *testcase)
+	}
+
+}
+
+func fatalIfErr(err error, msg string) {
+	if err != nil {
+		log.Fatalf("ERROR: %s: %s\n", msg, err)
 	}
 }

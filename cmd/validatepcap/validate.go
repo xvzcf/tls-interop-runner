@@ -1,22 +1,27 @@
 package main
 
-func isTranscriptValid(transcript Transcript, testCase string) bool {
+import (
+	"errors"
+)
+
+func validateTranscript(transcript tlsTranscript, testCase string) error {
 	switch testCase {
 	case "dc":
 		if transcript.clientHello.version != 0x0303 {
-			return false
+			return errors.New("ClientHello: legacy_version is not TLS 1.2.")
 		}
 		if !transcript.clientHello.supportsDC {
-			return false
+			return errors.New("ClientHello: support for delegated credentials not indicated.")
 		}
 		if transcript.clientHello.serverName != "example.com" {
-			return false
+			return errors.New("ClientHello: SNI should specify example.com")
 		}
 		for _, v := range transcript.clientHello.supportedVersions {
 			if v == 0x0304 {
-				return true
+				return nil
 			}
 		}
+		return errors.New("ClientHello: supported_versions does not include TLS 1.3.")
 	}
-	return false
+	return nil
 }
