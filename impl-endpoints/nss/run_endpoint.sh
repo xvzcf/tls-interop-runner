@@ -12,12 +12,12 @@ mkdir nss_testdata
 
 if [ "$TESTCASE" = "ech-accept" ]; then
     # Create a PKCS8 file for the ECH keypair
-    python3 /ech_key_converter.py testdata/ech_key nss_testdata/ech_key_converted
+    python3 /ech_key_converter.py /test-inputs/ech_key nss_testdata/ech_key_converted
 
     # Create pfx files for pk12util
-    openssl pkcs12 -export -out nss_testdata/root.pfx -name root.com -inkey testdata/root.key -in testdata/root.crt -passout pass:"$P12_PASS"
-    openssl pkcs12 -export -out nss_testdata/example.pfx -name example.com -inkey testdata/example.key -in testdata/example.crt -passout pass:"$P12_PASS"
-    openssl pkcs12 -export -out nss_testdata/client-facing.pfx -name client-facing.com -inkey testdata/client-facing.key -in testdata/client-facing.crt -passout pass:"$P12_PASS"
+    openssl pkcs12 -export -out nss_testdata/root.pfx -name root.com -inkey /test-inputs/root.key -in /test-inputs/root.crt -passout pass:"$P12_PASS"
+    openssl pkcs12 -export -out nss_testdata/example.pfx -name example.com -inkey /test-inputs/example.key -in /test-inputs/example.crt -passout pass:"$P12_PASS"
+    openssl pkcs12 -export -out nss_testdata/client-facing.pfx -name client-facing.com -inkey /test-inputs/client-facing.key -in /test-inputs/client-facing.crt -passout pass:"$P12_PASS"
 else
     echo "Test case not supported."
     return true
@@ -31,7 +31,7 @@ do
 
    # Trust the root
    if [ "$i" = "root" ]; then
-     certutil -A -n "$i".com -t "C,C,C" -i testdata/"$i".crt -d "$DB_DIR"
+     certutil -A -n "$i".com -t "C,C,C" -i /test-inputs/"$i".crt -d "$DB_DIR"
    fi
 done
 

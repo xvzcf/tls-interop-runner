@@ -17,8 +17,8 @@ void RunnerPointToPointHelper::SetQueueSize(StringValue size) {
 NetDeviceContainer RunnerPointToPointHelper::Install(Ptr<Node> a, Ptr<Node> b) {
   NetDeviceContainer devices = PointToPointHelper::Install(a, b);
   // capture a pcap of all packets
-  EnablePcap("/logs/client_node_trace.pcap", devices.Get(0), false, true);
-  EnablePcap("/logs/server_node_trace.pcap", devices.Get(1), false, true);
+  EnablePcap("/test-outputs/client_node_trace.pcap", devices.Get(0), false, true);
+  EnablePcap("/test-outputs/server_node_trace.pcap", devices.Get(1), false, true);
 
   TrafficControlHelper tch;
   tch.SetRootQueueDisc("ns3::PfifoFastQueueDisc", "MaxSize", queue_size_);

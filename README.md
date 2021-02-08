@@ -27,7 +27,7 @@ Tests require certificates and other cryptographic artifacts to be generated
 beforehand.
 
 ```
-make testdata
+make testinputs
 ```
 
 This command will generate:

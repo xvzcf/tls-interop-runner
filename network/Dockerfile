@@ -11,7 +11,12 @@ RUN mv /ns-allinone-$VERS/ns-$VERS /ns3
 WORKDIR /ns3
 
 RUN mkdir out/
-RUN ./waf configure --build-profile=release --out=out/
+# TODO(xvzcf): Change build profile back to release once
+# https://gitlab.com/nsnam/ns-3-dev/-/issues/102
+# is fixed.
+# TODO(xvzcf): Investigate whether a debug build profile
+# affects performance testing.
+RUN ./waf configure --build-profile=debug --out=out/
 RUN ./waf build
 
 RUN cd / && \
@@ -53,6 +58,6 @@ ENV LD_LIBRARY_PATH="/ns3/lib"
 
 COPY run.sh .
 RUN chmod +x run.sh
-RUN mkdir /logs
+RUN mkdir /test-outputs
 
 ENTRYPOINT [ "./run.sh" ]

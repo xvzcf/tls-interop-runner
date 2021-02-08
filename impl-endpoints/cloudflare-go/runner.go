@@ -23,39 +23,49 @@ var baseServerConfig, baseClientConfig *tls.Config
 
 func init() {
 	// Setup the base client configuration.
-	pem, err := ioutil.ReadFile("/testdata/root.crt")
+	pem, err := ioutil.ReadFile("/test-inputs/root.crt")
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	clientKeyLog, err := os.OpenFile("/test-outputs/client_keylog", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		log.Fatal(err)
+	}
 	certPool := x509.NewCertPool()
 	certPool.AppendCertsFromPEM(pem)
 	baseClientConfig = &tls.Config{
 		RootCAs: certPool,
+		KeyLogWriter: clientKeyLog,
 	}
 
 	// Setup the base server configuration.
 	serverCert, err := tls.LoadX509KeyPair(
-		"/testdata/example.crt",
-		"/testdata/example.key",
+		"/test-inputs/example.crt",
+		"/test-inputs/example.key",
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	clientFacingCert, err := tls.LoadX509KeyPair(
-		"/testdata/client-facing.crt",
-		"/testdata/client-facing.key",
+		"/test-inputs/client-facing.crt",
+		"/test-inputs/client-facing.key",
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	serverKeyLog, err := os.OpenFile("/test-outputs/server_keylog", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		log.Fatal(err)
+	}
 	baseServerConfig = &tls.Config{
 		Certificates: []tls.Certificate{
 			serverCert,
 			clientFacingCert,
 		},
+		KeyLogWriter: serverKeyLog,
 	}
 }
 
@@ -98,7 +108,7 @@ func (r *echTestResult) eventHandler(event tls.EXP_Event) {
 type testCaseECHAccept struct{}
 
 func (t testCaseECHAccept) ClientConfig() (*tls.Config, error) {
-	base64ECHConfigs, err := ioutil.ReadFile("/testdata/ech_configs")
+	base64ECHConfigs, err := ioutil.ReadFile("/test-inputs/ech_configs")
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +130,7 @@ func (t testCaseECHAccept) ClientConfig() (*tls.Config, error) {
 }
 
 func (t testCaseECHAccept) ServerConfig() (*tls.Config, error) {
-	base64ECHKeys, err := ioutil.ReadFile("/testdata/ech_key")
+	base64ECHKeys, err := ioutil.ReadFile("/test-inputs/ech_key")
 	if err != nil {
 		return nil, err
 	}
