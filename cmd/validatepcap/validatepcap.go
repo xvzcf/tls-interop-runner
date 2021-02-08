@@ -13,7 +13,7 @@ const usage = `Usage:
 
     $ validatepcap [-help] {-pcap-in} {-keylog-in} {-testcase}
 
-    Requires tshark with version >= 3.4.0
+    Requires tshark with version >= 3.2.0
 `
 
 func main() {
@@ -45,8 +45,8 @@ func main() {
 	tsharkMinorVersion, err := strconv.Atoi(tsharkVersionFields[1])
 	fatalIfErr(err, "Could not retrieve tshark minor version.")
 
-	if tsharkMajorVersion < 3 || tsharkMinorVersion < 4 {
-		log.Fatalf("Requires tshark with version >= 3.4.0.")
+	if tsharkMajorVersion < 3 || tsharkMinorVersion < 2 {
+		log.Fatalf("Requires tshark with version >= 3.2.0.")
 	}
 
 	transcript, err := parsePCap(tsharkPath, *pcapPath, *keylogPath)
