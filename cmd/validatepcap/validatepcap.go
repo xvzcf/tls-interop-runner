@@ -50,7 +50,7 @@ func main() {
 	}
 
 	transcript, err := parsePCap(tsharkPath, *pcapPath, *keylogPath)
-	fatalIfErr(err, "Could not parse supplied PCap.")
+	fatalIfErr(err, "Could not parse supplied PCap")
 
 	err = validateTranscript(transcript, *testcase)
 	if err != nil {

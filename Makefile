@@ -1,4 +1,4 @@
-TESTDATA_DIR = testdata
+TESTDATA_DIR = generated/test-inputs
 BIN_DIR = bin
 UTIL = ${BIN_DIR}/util
 UTIL_SRCS = $(wildcard cmd/util/*.go)
@@ -6,7 +6,7 @@ UTIL_SRCS = $(wildcard cmd/util/*.go)
 VALIDATEPCAP = ${BIN_DIR}/validatepcap
 VALIDATEPCAP_SRCS = $(wildcard cmd/validatepcap/*.go)
 
-all: testdata
+all: testinputs
 
 util: $(UTIL_SRCS)
 	mkdir -p ${BIN_DIR}
@@ -18,8 +18,8 @@ validatepcap: $(VALIDATEPCAP_SRCS)
 	go get ./cmd/validatepcap/...
 	go build -o ${VALIDATEPCAP} ./cmd/validatepcap/...
 
-.PHONY: testdata
-testdata: util
+.PHONY: testinputs
+testinputs: util
 	mkdir -p ${TESTDATA_DIR}
 	${UTIL} -make-root -out ${TESTDATA_DIR}/root.crt -key-out ${TESTDATA_DIR}/root.key -host root.com
 	${UTIL} -make-intermediate -cert-in ${TESTDATA_DIR}/root.crt -key-in ${TESTDATA_DIR}/root.key -out ${TESTDATA_DIR}/example.crt -key-out ${TESTDATA_DIR}/example.key -host example.com

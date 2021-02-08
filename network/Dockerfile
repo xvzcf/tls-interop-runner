@@ -58,6 +58,6 @@ ENV LD_LIBRARY_PATH="/ns3/lib"
 
 COPY run.sh .
 RUN chmod +x run.sh
-RUN mkdir /logs
+RUN mkdir /test-outputs
 
 ENTRYPOINT [ "./run.sh" ]
