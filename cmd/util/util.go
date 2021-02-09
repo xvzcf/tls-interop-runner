@@ -1,10 +1,5 @@
-// Copyright 2018 The cert-tool Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// This code is based on https://github.com/FiloSottile/mkcert
-// and also draws from https://boringssl.googlesource.com/boringssl/+/refs/heads/master/ssl/test/runner/
-// It's in very rough shape right now; more documentation and refactoring to follow.
+// SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors
+// SPDX-License-Identifier: MIT
 
 package main
 

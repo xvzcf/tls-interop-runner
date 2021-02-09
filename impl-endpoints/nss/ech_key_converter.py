@@ -1,5 +1,8 @@
 #!/usr/bin/python3
 
+# SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors
+# SPDX-License-Identifier: MIT
+
 """
 This script rewrites an ECHKey to contain a PKCS8-formatted keypair, which is the format
 required by the selfserv utility in NSS. Specifically, the output is formed as follows:

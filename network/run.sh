@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# SPDX-FileCopyrightText: 2019 Jana Iyengar, Marten Seemann
+# SPDX-License-Identifier: Apache-2.0
+# This file is taken from https://github.com/marten-seemann/quic-network-simulator
+
 set -e
 
 # We are using eth0 and eth1 as EmuFdNetDevices in ns3.

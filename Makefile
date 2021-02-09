@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors
+# SPDX-License-Identifier: CC0-1.0
+
 TESTDATA_DIR = generated/test-inputs
 BIN_DIR = bin
 UTIL = ${BIN_DIR}/util

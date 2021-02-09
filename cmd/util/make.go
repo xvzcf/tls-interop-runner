@@ -1,6 +1,11 @@
-// Copyright 2018 The mkcert Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
+// SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors
+// SPDX-License-Identifier: MIT
+
+// SPDX-FileCopyrightText: 2018 The mkcert Authors
+// SPDX-License-Identifier: BSD-3-Clause
+
+// SPDX-FileCopyrightText: 2009 The Go Authors
+// SPDX-License-Identifier: BSD-3-Clause
 
 package main
 
@@ -25,6 +30,7 @@ import (
 	"path/filepath"
 )
 
+// makeRootCertificate is based on code found in https://github.com/FiloSottile/mkcert
 func makeRootCertificate(config *Config, outPath string, outKeyPath string) {
 	signer, err := getSigner(&config.Bugs, config.rand(), config.SignatureAlgorithm)
 	fatalIfErr(err, "failed to get Signer")
@@ -89,6 +95,7 @@ func makeRootCertificate(config *Config, outPath string, outKeyPath string) {
 	log.Printf("Created a new root certificate.\n")
 }
 
+// makeIntermediateCertificate is based on code found in https://github.com/FiloSottile/mkcert
 func makeIntermediateCertificate(config *Config, inCertPath string, inKeyPath string, outPath string, outKeyPath string) {
 	signer, err := getSigner(&config.Bugs, config.rand(), config.SignatureAlgorithm)
 	fatalIfErr(err, "failed to get Signer")
@@ -176,6 +183,7 @@ func makeIntermediateCertificate(config *Config, inCertPath string, inKeyPath st
 	}
 }
 
+// makeDelegatedCredential is based on code found in https://boringssl.googlesource.com/boringssl/+/refs/heads/master/ssl/test/runner/
 func makeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPath string, inKeyPath string, outPath string) {
 	lifetimeSecs := int64(config.ValidFor.Seconds())
 	var dc []byte
@@ -303,7 +311,7 @@ func makeECHKey(template ECHConfigTemplate, outPath, outKeyPath string) {
 // (currently restricted to hostname-compatible "preferred name" LDH labels and
 // SRV-like "underscore labels"; see golang.org/issue/12421).
 //
-// NOTE(cjpatton): This was copied verbatim from src/net/dnsclient.go in the
+// This was copied verbatim from src/net/dnsclient.go in the
 // Go standard library.
 func isDomainName(s string) bool {
 	// See RFC 1035, RFC 3696.

@@ -1,4 +1,8 @@
 #!/bin/sh
+
+# SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors
+# SPDX-License-Identifier: MIT
+
 set -e
 
 sh /setup-routes.sh

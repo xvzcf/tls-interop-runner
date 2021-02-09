@@ -1,3 +1,10 @@
+/*
+ * SPDX-FileCopyrightText: 2019 Jana Iyengar, Marten Seemann
+ * SPDX-License-Identifier: Apache-2.0
+ * This file is taken from https://github.com/marten-seemann/quic-network-simulator
+ * and has been modified by the tls-interop-runner Authors.
+ */
+
 #ifndef POINT_TO_POINT_HELPER_HH
 #define POINT_TO_POINT_HELPER_HH
 

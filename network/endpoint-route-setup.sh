@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# SPDX-FileCopyrightText: 2019 Jana Iyengar, Marten Seemann
+# SPDX-License-Identifier: Apache-2.0
+# This file is taken from https://github.com/marten-seemann/quic-network-simulator
+
 echo "Setting up routes..."
 # By default, docker containers don't compute UDP / TCP checksums.
 # When packets run through ns3 however, the receiving endpoint requires valid checksums.
