@@ -1,6 +1,11 @@
-// Copyright 2009 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
+// SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors
+// SPDX-License-Identifier: MIT
+
+// SPDX-FileCopyrightText: 2009 The Go Authors
+// SPDX-License-Identifier: BSD-3-Clause
+
+// This file is based on code found in
+// https://boringssl.googlesource.com/boringssl/+/refs/heads/master/ssl/test/runner/
 
 package main
 
@@ -9,8 +14,6 @@ import (
 	"io"
 	"log"
 	"math/big"
-	"os"
-	"os/exec"
 	"time"
 )
 
@@ -18,22 +21,6 @@ func fatalIfErr(err error, msg string) {
 	if err != nil {
 		log.Fatalf("ERROR: %s: %s\n", msg, err)
 	}
-}
-
-func fatalIfCmdErr(err error, cmd string, out []byte) {
-	if err != nil {
-		log.Fatalf("ERROR: failed to execute \"%s\": %s\n\n%s\n", cmd, err, out)
-	}
-}
-
-func pathExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
-func binaryExists(name string) bool {
-	_, err := exec.LookPath(name)
-	return err == nil
 }
 
 type dsaSignature struct {

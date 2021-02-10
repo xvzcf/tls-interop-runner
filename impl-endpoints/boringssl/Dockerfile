@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors
+# SPDX-License-Identifier: MIT
+
 FROM golang:latest AS builder
 
 RUN apt-get update && \

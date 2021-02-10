@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors
+# SPDX-License-Identifier: MIT
+
 FROM rust:1.44 AS builder
 
 RUN git clone https://github.com/ctz/rustls.git /rustls

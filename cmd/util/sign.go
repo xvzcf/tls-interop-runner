@@ -1,6 +1,11 @@
-// Copyright 2016 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
+// SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors
+// SPDX-License-Identifier: MIT
+
+// SPDX-FileCopyrightText: 2009 The Go Authors
+// SPDX-License-Identifier: BSD-3-Clause
+
+// This file is based on code found in
+// https://boringssl.googlesource.com/boringssl/+/refs/heads/master/ssl/test/runner/
 
 package main
 

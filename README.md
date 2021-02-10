@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors -->
+<!-- SPDX-License-Identifier: CC0-1.0 -->
+
 # (Work in Progress) TLS Interop Test Runner
 
 The TLS Interop Test Runner aims to test interoperability between

@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors
+# SPDX-License-Identifier: MIT
+
 sh /setup-routes.sh
 
 DB_DIR="db"
