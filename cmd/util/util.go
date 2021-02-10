@@ -14,12 +14,14 @@ import (
 
 const usage = `Usage:
 
-    $ util [-help] {-make-root|-make-intermediate|-make-dc} [-cert-in PATH] [-key-in PATH] [-out PATH] [-key-out PATH]
+    $ util [-help] {-make-root|-make-intermediate|-make-dc|-make-dcvectors} [-cert-in PATH] [-key-in PATH] [-out PATH] [-key-out PATH]
 
     $ util -make-root -out root.crt -key-out root.key -host root.com
     $ util -make-intermediate -cert-in parent.crt -key-in parent.key -out child.crt -key-out child.key -host example.com
     $ util -make-dc -cert-in leaf.crt -key-in leaf.key -out dc.txt
     $ util -make-ech-key -cert-in client-facing.crt -out ech_configs -key-out ech_key
+    $ util -make-dc-vectors -cert-in leaf.crt -key-in leaf.key -dc-algo algo -out dc.txt
+    $ util -make-ech-key -cert-in client_facing.crt -out ech_configs -key-out ech_key
 
     Note: This is a barebones CLI intended for basic usage/debugging.
 `
@@ -30,6 +32,7 @@ func main() {
 		makeRootCert         = flag.Bool("make-root", false, "")
 		makeIntermediateCert = flag.Bool("make-intermediate", false, "")
 		makeDC               = flag.Bool("make-dc", false, "")
+		makeDCVectors        = flag.Bool("make-dcvectors", false, "")
 		makeECH              = flag.Bool("make-ech", false, "")
 		help                 = flag.Bool("help", false, "")
 		inCertPath           = flag.String("cert-in", "", "")
@@ -37,6 +40,7 @@ func main() {
 		outPath              = flag.String("out", "", "")
 		outKeyPath           = flag.String("key-out", "", "")
 		hostName             = flag.String("host", "", "")
+		dcAlgo               = flag.Uint("dc-algo", 0, "")
 	)
 	flag.Parse()
 	if *help {
@@ -46,11 +50,14 @@ func main() {
 	if *makeRootCert && (*outPath == "" || *outKeyPath == "" || *hostName == "") {
 		log.Fatalln("ERROR: -make-root requires -out and -key-out -host")
 	}
-	if *makeIntermediateCert && (*inCertPath == "" || *outKeyPath == "" || *inKeyPath == "" || *outKeyPath == "" || *hostName == "") {
+	if *makeIntermediateCert && (*inCertPath == "" || *outKeyPath == "" || *inKeyPath == "" || *outPath == "" || *hostName == "") {
 		log.Fatalln("ERROR: -make-intermediate requires -cert-in, -key-in, -out, -key-out, -host")
 	}
 	if *makeDC && (*inCertPath == "" || *outPath == "" || *inKeyPath == "") {
 		log.Fatalln("ERROR: -make-dc requires -cert-in, -key-in, -out")
+	}
+	if *makeDCVectors && (*inCertPath == "" || *outPath == "" || *inKeyPath == "" || *dcAlgo == 0) {
+		log.Fatalln("ERROR: -make-dcvectors requires -cert-in, -key-in -dc-algo, -out")
 	}
 	if *makeECH && (*hostName == "") {
 		log.Fatalln("ERROR: -make-ech requires -host")
@@ -86,6 +93,17 @@ func main() {
 			&Config{
 				ValidFor:           24 * time.Hour,
 				SignatureAlgorithm: signatureECDSAWithP521AndSHA512,
+			},
+			&Config{},
+			*inCertPath,
+			*inKeyPath,
+			*outPath,
+		)
+	} else if *makeDCVectors {
+		makeDelegatedCredential(
+			&Config{
+				ValidFor:           24 * time.Hour,
+				SignatureAlgorithm: signatureAlgorithm(*dcAlgo),
 			},
 			&Config{},
 			*inCertPath,
