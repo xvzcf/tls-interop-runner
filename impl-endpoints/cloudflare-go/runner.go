@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
@@ -17,9 +18,9 @@ import (
 
 type testCase interface {
 	ClientConfig() (*tls.Config, error)
-	ClientConnectionHandler(*tls.Conn) error
+	ClientConnectionHandler(*tls.Conn, error) error
 	ServerConfig() (*tls.Config, error)
-	ServerConnectionHandler(*tls.Conn) error
+	ServerConnectionHandler(*tls.Conn, error) error
 }
 
 var baseServerConfig, baseClientConfig *tls.Config
@@ -38,7 +39,7 @@ func init() {
 	certPool := x509.NewCertPool()
 	certPool.AppendCertsFromPEM(pem)
 	baseClientConfig = &tls.Config{
-		RootCAs: certPool,
+		RootCAs:      certPool,
 		KeyLogWriter: clientKeyLog,
 	}
 
@@ -72,6 +73,8 @@ func init() {
 	}
 }
 
+// The "dc" test case in which the client indicates support for DCs and the
+// server uses a DC for authentication. See draft-ietf-tls-subcerts.
 type testCaseDC struct{}
 
 func (t testCaseDC) ClientConfig() (*tls.Config, error) {
@@ -85,55 +88,102 @@ func (t testCaseDC) ServerConfig() (*tls.Config, error) {
 	return config, nil
 }
 
-func (t testCaseDC) ClientConnectionHandler(conn *tls.Conn) error {
+func (t testCaseDC) ClientConnectionHandler(conn *tls.Conn, err error) error {
+	if err != nil {
+		return fmt.Errorf("Unexpected error: \"%s\"", err)
+	}
 	if conn.ConnectionState().VerifiedDC == nil {
 		return errors.New("Failed to verify a delegated credential")
 	}
 	return nil
 }
 
-func (t testCaseDC) ServerConnectionHandler(conn *tls.Conn) error {
+func (t testCaseDC) ServerConnectionHandler(conn *tls.Conn, err error) error {
 	// TODO
 	return errors.New("NOT IMPLEMENTED")
 }
 
-type echTestResult struct {
-	serverStatus tls.EXP_EventECHServerStatus
-}
-
-func (r *echTestResult) eventHandler(event tls.EXP_Event) {
-	switch e := event.(type) {
-	case tls.EXP_EventECHServerStatus:
-		r.serverStatus = e
-	}
-}
-
+// The "ech-accept" test case in which a client offers the ECH extension and
+// the server accepts. The client verifies server name "backend.com". See
+// draft-ietf-tls-esni.
+//
+// TODO(cjpatton): Check via validatepcap that:
+// (1) client sent ECH in CH; and
+// (2) SNI = "example.com".
 type testCaseECHAccept struct{}
 
 func (t testCaseECHAccept) ClientConfig() (*tls.Config, error) {
-	base64ECHConfigs, err := ioutil.ReadFile("/test-inputs/ech_configs")
-	if err != nil {
-		return nil, err
-	}
-
-	rawECHConfigs, err := base64.StdEncoding.DecodeString(string(base64ECHConfigs))
-	if err != nil {
-		return nil, err
-	}
-
-	echConfigs, err := tls.UnmarshalECHConfigs(rawECHConfigs)
-	if err != nil {
-		return nil, err
-	}
-
-	config := baseClientConfig.Clone()
-	config.ClientECHConfigs = echConfigs
-	config.ECHEnabled = true
-	return config, nil
+	return echClientConfig("/test-inputs/ech_configs")
 }
 
 func (t testCaseECHAccept) ServerConfig() (*tls.Config, error) {
-	base64ECHKeys, err := ioutil.ReadFile("/test-inputs/ech_key")
+	return echServerConfig("/test-inputs/ech_key")
+}
+
+func (t testCaseECHAccept) connectionHandler(conn *tls.Conn, err error) error {
+	if err != nil {
+		return fmt.Errorf("Unexpected error: \"%s\"", err)
+	}
+
+	st := conn.ConnectionState()
+	if !st.ECHAccepted {
+		return errors.New("ECH not accepted")
+	}
+	log.Printf("Connection completed with backend server \"%s\"", st.ServerName)
+	return nil
+}
+
+func (t testCaseECHAccept) ClientConnectionHandler(conn *tls.Conn, err error) error {
+	return t.connectionHandler(conn, err)
+}
+
+func (t testCaseECHAccept) ServerConnectionHandler(conn *tls.Conn, err error) error {
+	return t.connectionHandler(conn, err)
+}
+
+// The "ech-reject" test case in which the client offers ECH with stale configs
+// and the server rejects. The client verifies server name "client-facing.com",
+// then aborts the handshake with an "ech_required" alert. See
+// draft-ietf-tls-esni.
+//
+// TODO(cjpatton): Check via validatepcap that:
+// (1) client sent ECH in CH;
+// (2) server sent ECH in EE; and
+// (3) SNI = "client-facing.com".
+type testCaseECHReject struct{}
+
+func (t testCaseECHReject) ClientConfig() (*tls.Config, error) {
+	return echClientConfig("/test-inputs/ech_configs_invalid")
+}
+
+func (t testCaseECHReject) ServerConfig() (*tls.Config, error) {
+	return echServerConfig("/test-inputs/ech_key")
+}
+
+func (t testCaseECHReject) ClientConnectionHandler(conn *tls.Conn, err error) error {
+	if err == nil {
+		return errors.New("Handshake completed successfully; expected error")
+	}
+	if err.Error() != "tls: ech: rejected" {
+		return fmt.Errorf("Unexpected error: \"%s\"", err)
+	}
+	log.Print("Aborted the connection as expected")
+	return nil
+}
+
+func (t testCaseECHReject) ServerConnectionHandler(conn *tls.Conn, err error) error {
+	if err != nil {
+		return fmt.Errorf("Unexpected error: \"%s\"", err)
+	}
+	if conn.ConnectionState().ECHAccepted {
+		return errors.New("ECH accepted; expected rejection")
+	}
+	log.Printf("Connection completed with client-facing server \"%s\"", conn.ConnectionState().ServerName)
+	return nil
+}
+
+func echServerConfig(keysFile string) (*tls.Config, error) {
+	base64ECHKeys, err := ioutil.ReadFile(keysFile)
 	if err != nil {
 		return nil, err
 	}
@@ -159,24 +209,32 @@ func (t testCaseECHAccept) ServerConfig() (*tls.Config, error) {
 	return config, nil
 }
 
-func (t testCaseECHAccept) connectionHandler(conn *tls.Conn) error {
-	if !conn.ConnectionState().ECHAccepted {
-		return errors.New("ECH not accepted")
+func echClientConfig(configsFile string) (*tls.Config, error) {
+	base64ECHConfigs, err := ioutil.ReadFile(configsFile)
+	if err != nil {
+		return nil, err
 	}
-	return nil
-}
 
-func (t testCaseECHAccept) ClientConnectionHandler(conn *tls.Conn) error {
-	return t.connectionHandler(conn)
-}
+	rawECHConfigs, err := base64.StdEncoding.DecodeString(string(base64ECHConfigs))
+	if err != nil {
+		return nil, err
+	}
 
-func (t testCaseECHAccept) ServerConnectionHandler(conn *tls.Conn) error {
-	return t.connectionHandler(conn)
+	echConfigs, err := tls.UnmarshalECHConfigs(rawECHConfigs)
+	if err != nil {
+		return nil, err
+	}
+
+	config := baseClientConfig.Clone()
+	config.ClientECHConfigs = echConfigs
+	config.ECHEnabled = true
+	return config, nil
 }
 
 var testCaseHandlers = map[string]testCase{
 	"dc":         testCaseDC{},
 	"ech-accept": testCaseECHAccept{},
+	"ech-reject": testCaseECHReject{},
 }
 
 func doClient(t testCase) error {
@@ -186,13 +244,10 @@ func doClient(t testCase) error {
 	}
 
 	c, err := tls.Dial("tcp", "example.com:4433", config)
-	if err != nil {
-		return err
+	if err == nil {
+		defer c.Close()
 	}
-	defer c.Close()
-
-	log.Print("Handshake completed")
-	return t.ClientConnectionHandler(c)
+	return t.ClientConnectionHandler(c, err)
 }
 
 func doServer(t testCase) error {
@@ -215,13 +270,10 @@ func doServer(t testCase) error {
 
 	s := tls.Server(conn, config)
 	err = s.Handshake()
-	if err != nil {
-		return err
+	if err == nil {
+		defer s.Close()
 	}
-	defer s.Close()
-
-	log.Print("Handshake completed")
-	return t.ServerConnectionHandler(s)
+	return t.ServerConnectionHandler(s, err)
 }
 
 func main() {
@@ -235,15 +287,16 @@ func main() {
 		os.Exit(64)
 	}
 
+	log.SetFlags(0)
 	if *role == "client" {
 		if err := doClient(handler); err != nil {
-			log.Fatal("Error: ", err)
+			log.Fatal(err)
 		}
 	} else if *role == "server" {
 		if err := doServer(handler); err != nil {
-			log.Fatal("Error: ", err)
+			log.Fatal(err)
 		}
 	} else {
-		log.Fatalf("unknown role \"%s\"", *role)
+		log.Fatalf("Unknown role \"%s\"", *role)
 	}
 }
