@@ -91,7 +91,7 @@ type Config struct {
 	// implementations.
 	Bugs CertificateBugs
 
-	// The signature algorithm for the Delegated Credential
+	// SignatureAlgorithm defines the signature algorithm for a Delegated Credential
 	SignatureAlgorithm signatureAlgorithm
 }
 
