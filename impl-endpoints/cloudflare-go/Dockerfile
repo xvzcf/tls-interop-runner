@@ -17,9 +17,9 @@ RUN apt-get update && \
 
 COPY --from=builder /cf-go /cf-go
 
-COPY runner.go /
+COPY runner.go config.go /
 
-RUN /cf-go/bin/go build -o /usr/bin/runner runner.go
+RUN /cf-go/bin/go build -o /usr/bin/runner
 
 COPY run_endpoint.sh /
 RUN chmod +x /run_endpoint.sh
