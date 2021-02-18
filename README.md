@@ -32,7 +32,7 @@ This command will generate:
 
 Tests are run with `docker-compose`, with the artifacts copied into a virtual
 volume. To run a test, you must first build the endpoints. For example, to build
-a boringSSL server and Cloudflare-Go client:
+a BoringSSL server and Cloudflare-Go client:
 
 ```
 ./build.sh cloudflare-go boringssl
