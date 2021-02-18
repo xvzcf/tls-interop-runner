@@ -163,7 +163,12 @@ func doClient(t TestHandler) error {
 	if err == nil {
 		defer c.Close()
 	}
-	return t.ConnectionHandler(c, err)
+
+	err = t.ConnectionHandler(c, err)
+	if err != nil {
+		log.Print(err)
+	}
+	return nil
 }
 
 func doServer(t TestHandler) error {
@@ -179,17 +184,25 @@ func doServer(t TestHandler) error {
 	defer ln.Close()
 	log.Print("Listening at ", ln.Addr())
 
-	conn, err := ln.Accept()
-	if err != nil {
-		return err
-	}
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			return err
+		}
 
-	s := tls.Server(conn, config)
-	err = s.Handshake()
-	if err == nil {
-		defer s.Close()
+		go func() {
+			s := tls.Server(conn, config)
+			err = s.Handshake()
+			if err == nil {
+				defer s.Close()
+			}
+			err = t.ConnectionHandler(s, err)
+			if err != nil {
+				log.Print(err)
+			}
+		}()
 	}
-	return t.ConnectionHandler(s, err)
+	return nil
 }
 
 func main() {
