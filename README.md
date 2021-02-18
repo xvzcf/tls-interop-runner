@@ -17,15 +17,6 @@ You will need to have golang installed.
 You will need to clone this repository on the `src` directory of your
 `$GOPATH`. To learn your `$GOPATH`, use `go env`.
 
-Tests are run with `docker-compose`. To run a test, you must first build the
-endpoints. For example, to build a boringSSL server and Cloudflare-Go client:
-
-```
-env SERVER_SRC=./impl-endpoints SERVER=boringssl \
-    CLIENT_SRC=./impl-endpoints CLIENT=cloudflare-go \
-    docker-compose build
-```
-
 Tests require certificates and other cryptographic artifacts to be generated
 beforehand.
 
@@ -39,12 +30,18 @@ This command will generate:
 * A delegated credential
 * ECH configuration files
 
+Tests are run with `docker-compose`, with the artifacts copied into a virtual
+volume. To run a test, you must first build the endpoints. For example, to build
+a boringSSL server and Cloudflare-Go client:
+
+```
+./build.sh cloudflare-go boringssl
+```
+
 You're now ready to run tests. The test case is also specified by setting an
 environment variable. For example, to run the server-side delegated credential
 test:
 
 ```
-env SERVER_SRC=./impl-endpoints SERVER=boringssl \
-    CLIENT_SRC=./impl-endpoints CLIENT=cloudflare-go \
-    TESTCASE=dc docker-compose up
+./run.sh cloudflare-go boringssl dc
 ```
