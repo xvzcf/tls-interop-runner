@@ -21,16 +21,18 @@ validatepcap: $(VALIDATEPCAP_SRCS)
 	go get ./cmd/validatepcap/...
 	go build -o ${VALIDATEPCAP} ./cmd/validatepcap/...
 
+# TODO: replace this makefile creation with golden files created by golang themselves
+algorithms := 0x0807 0x0403 0x0503 0x0603
+r = $(shell awk -v min=1 -v max=3 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
+alg = $(word $(call r), $(algorithms))
+
 .PHONY: testinputs
 testinputs: util
 	mkdir -p ${TESTDATA_DIR}
 	${UTIL} -make-root -out ${TESTDATA_DIR}/root.crt -key-out ${TESTDATA_DIR}/root.key -host root.com
 	${UTIL} -make-intermediate -cert-in ${TESTDATA_DIR}/root.crt -key-in ${TESTDATA_DIR}/root.key -out ${TESTDATA_DIR}/example.crt -key-out ${TESTDATA_DIR}/example.key -host example.com
 	${UTIL} -make-intermediate -cert-in ${TESTDATA_DIR}/root.crt -key-in ${TESTDATA_DIR}/root.key -out ${TESTDATA_DIR}/client-facing.crt -key-out ${TESTDATA_DIR}/client-facing.key -host client-facing.com
-	${UTIL} -make-dc -cert-in ${TESTDATA_DIR}/example.crt -key-in ${TESTDATA_DIR}/example.key -alg 0x0807 -out ${TESTDATA_DIR}/dc_ed25519.txt
-	${UTIL} -make-dc -cert-in ${TESTDATA_DIR}/example.crt -key-in ${TESTDATA_DIR}/example.key -alg 0x0403 -out ${TESTDATA_DIR}/dc_ecdsa_p256.txt
-	${UTIL} -make-dc -cert-in ${TESTDATA_DIR}/example.crt -key-in ${TESTDATA_DIR}/example.key -alg 0x0503 -out ${TESTDATA_DIR}/dc_ecdsa_p384.txt
-	${UTIL} -make-dc -cert-in ${TESTDATA_DIR}/example.crt -key-in ${TESTDATA_DIR}/example.key -alg 0x0603 -out ${TESTDATA_DIR}/dc_ecdsa_p512.txt
+	${UTIL} -make-dc -cert-in ${TESTDATA_DIR}/example.crt -key-in ${TESTDATA_DIR}/example.key -alg $(call alg) -out ${TESTDATA_DIR}/dc.txt
 	${UTIL} -make-ech -out ${TESTDATA_DIR}/ech_configs -key-out ${TESTDATA_DIR}/ech_key -host client-facing.com
 	${UTIL} -make-ech -out ${TESTDATA_DIR}/ech_configs_invalid -key-out /dev/null -host client-facing.com
 
