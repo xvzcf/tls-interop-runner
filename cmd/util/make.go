@@ -268,7 +268,7 @@ func makeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPat
 	dcSerialized := fmt.Sprintf("%x,%x", dc, privPKCS8)
 	err = ioutil.WriteFile(outPath, []byte(dcSerialized), 0644)
 	fatalIfErr(err, "failed to save DC")
-	log.Printf("\nThe generated DC (format: DC, privkey) is at \"%s\" \n\n", outPath)
+	log.Printf("\nThe generated DC (format: DC, privkey) using algorithm %x is at \"%s\" \n\n", config.SignatureAlgorithm, outPath)
 }
 
 // makeECHKey generates an ECH config and corresponding key, writing the key to
