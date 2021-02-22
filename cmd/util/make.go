@@ -12,6 +12,7 @@ package main
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/x509"
@@ -35,10 +36,9 @@ func makeRootCertificate(config *Config, outPath string, outKeyPath string) {
 	signer, err := getSigner(&config.Bugs, config.rand(), config.SignatureAlgorithm)
 	fatalIfErr(err, "failed to get Signer")
 
-	priv, err := signer.GenerateKey()
+	priv, pub, err := signer.GenerateKey()
 	fatalIfErr(err, "failed to generate private key")
 
-	pub := priv.Public()
 	spkiASN1, err := x509.MarshalPKIXPublicKey(pub)
 	fatalIfErr(err, "failed to encode public key")
 
@@ -100,10 +100,8 @@ func makeIntermediateCertificate(config *Config, inCertPath string, inKeyPath st
 	signer, err := getSigner(&config.Bugs, config.rand(), config.SignatureAlgorithm)
 	fatalIfErr(err, "failed to get Signer")
 
-	priv, err := signer.GenerateKey()
+	priv, pub, err := signer.GenerateKey()
 	fatalIfErr(err, "failed to generate private key")
-
-	pub := priv.Public()
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(config.rand(), serialNumberLimit)
@@ -184,6 +182,7 @@ func makeIntermediateCertificate(config *Config, inCertPath string, inKeyPath st
 }
 
 // makeDelegatedCredential is based on code found in https://boringssl.googlesource.com/boringssl/+/refs/heads/master/ssl/test/runner/
+// It generates a delegated credential for the party that asks for it
 func makeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPath string, inKeyPath string, outPath string) {
 	lifetimeSecs := int64(config.ValidFor.Seconds())
 	var dc []byte
@@ -194,13 +193,12 @@ func makeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPat
 	signer, err := getSigner(&config.Bugs, config.rand(), config.SignatureAlgorithm)
 	fatalIfErr(err, "failed to get Signer")
 
-	priv, err := signer.GenerateKey()
+	priv, pub, err := signer.GenerateKey()
 	fatalIfErr(err, "failed to generate private key")
 
 	privPKCS8, err := x509.MarshalPKCS8PrivateKey(priv)
-	fatalIfErr(err, "failed to marshal ECDSA Key")
+	fatalIfErr(err, "failed to marshal private Key")
 
-	pub := priv.Public()
 	pubBytes, err := x509.MarshalPKIXPublicKey(pub)
 	fatalIfErr(err, "failed to marshal public Key")
 
@@ -238,6 +236,8 @@ func makeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPat
 		} else {
 			log.Fatalf("ERROR: public key unsupported\n")
 		}
+	case ed25519.PublicKey:
+		parentSigAlg = signatureEd25519
 	default:
 		log.Fatalf("ERROR: public key unsupported\n")
 	}
@@ -268,7 +268,7 @@ func makeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPat
 	dcSerialized := fmt.Sprintf("%x,%x", dc, privPKCS8)
 	err = ioutil.WriteFile(outPath, []byte(dcSerialized), 0644)
 	fatalIfErr(err, "failed to save DC")
-	log.Printf("\nThe generated DC (format: DC, privkey) is at \"%s\" \n\n", outPath)
+	log.Printf("\nThe generated DC (format: DC, privkey) using algorithm %x is at \"%s\" \n\n", config.SignatureAlgorithm, outPath)
 }
 
 // makeECHKey generates an ECH config and corresponding key, writing the key to

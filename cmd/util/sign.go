@@ -12,92 +12,112 @@ package main
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	_ "crypto/sha256"
 	_ "crypto/sha512"
-	"encoding/asn1"
 	"fmt"
 	"io"
-	"math/big"
 )
 
-type ECDSASigner struct {
+// Signer represents an structure holding the signing information
+type Signer struct {
 	bugs  *CertificateBugs
 	curve elliptic.Curve
 	hash  crypto.Hash
-	priv  *ecdsa.PrivateKey
+	priv  crypto.PrivateKey
 	rand  io.Reader
+	ecdsa bool
 }
 
-func maybeCorruptECDSAValue(n *big.Int, typeOfCorruption BadValue, limit *big.Int) *big.Int {
+func maybeCorruptECDSASignature(typeOfCorruption BadValue, signature []byte) []byte {
 	switch typeOfCorruption {
 	case BadValueNone:
-		return n
-	case BadValueNegative:
-		return new(big.Int).Neg(n)
+		return signature
 	case BadValueZero:
-		return big.NewInt(0)
-	case BadValueLimit:
-		return limit
+		signature = nil
+		return signature
 	case BadValueLarge:
-		bad := new(big.Int).Set(limit)
-		return bad.Lsh(bad, 20)
+		signature = append(signature, 0)
+		return signature
 	default:
-		panic("unknown BadValue type")
+		panic("unknown corruption type")
 	}
 }
 
-func (e *ECDSASigner) Public() *ecdsa.PublicKey {
-	return &e.priv.PublicKey
-}
-
 // GenerateKey generates a public and private key pair.
-func (e *ECDSASigner) GenerateKey() (*ecdsa.PrivateKey, error) {
-	priv, err := ecdsa.GenerateKey(e.curve, e.rand)
-	e.priv = priv
-	return priv, err
+// TODO(claucece): as this is used beyond DCs, it needs to support all the other algos.
+func (e *Signer) GenerateKey() (crypto.PrivateKey, crypto.PublicKey, error) {
+	var privK crypto.PrivateKey
+	var pubK crypto.PublicKey
+	var err error
+
+	if e.ecdsa == true {
+		privK, err = ecdsa.GenerateKey(e.curve, e.rand)
+		if err != nil {
+			return nil, nil, err
+		}
+		pubK = privK.(*ecdsa.PrivateKey).Public()
+	} else {
+		pubK, privK, err = ed25519.GenerateKey(e.rand)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	e.priv = privK
+	return privK, pubK, err
 }
 
-func (e *ECDSASigner) SignWithKey(key crypto.PrivateKey, msg []byte) ([]byte, error) {
-	ecdsaKey, _ := key.(*ecdsa.PrivateKey)
+var directSigning crypto.Hash = 0
 
-	h := e.hash.New()
-	h.Write(msg)
-	digest := h.Sum(nil)
+// SignWithKey sings a message with the appropriate key. It is only used by
+// delegated credentials, and only supports algorithms allowed for them.
+func (e *Signer) SignWithKey(key crypto.PrivateKey, msg []byte) ([]byte, error) {
+	var digest []byte
+	if e.hash != directSigning {
+		h := e.hash.New()
+		h.Write(msg)
+		digest = h.Sum(nil)
+	}
 
-	r, s, err := ecdsa.Sign(e.rand, ecdsaKey, digest)
-	fatalIfErr(err, "failed to sign ECDHE parameters")
+	var sig []byte
+	var err error
+	switch sk := key.(type) {
+	case *ecdsa.PrivateKey:
+		opts := crypto.SignerOpts(e.hash)
+		sig, err = sk.Sign(e.rand, digest, opts)
+		if err != nil {
+			fatalIfErr(err, "failed to sign parameters")
+			return nil, err
+		}
+	case ed25519.PrivateKey:
+		opts := crypto.SignerOpts(e.hash)
+		sig, err = sk.Sign(e.rand, msg, opts)
+		if err != nil {
+			fatalIfErr(err, "failed to sign parameters")
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("tls: unsupported key type")
+	}
 
-	order := ecdsaKey.Curve.Params().N
-	r = maybeCorruptECDSAValue(r, e.bugs.BadECDSAR, order)
-	s = maybeCorruptECDSAValue(s, e.bugs.BadECDSAS, order)
-	return asn1.Marshal(ECDSASignature{r, s})
+	return sig, nil
 }
 
-func (e *ECDSASigner) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) ([]byte, error) {
-	h := e.hash.New()
-	h.Write(msg)
-	digest := h.Sum(nil)
-
-	r, s, err := ecdsa.Sign(e.rand, e.priv, digest)
-	fatalIfErr(err, "failed to sign ECDHE parameters")
-
-	order := e.priv.Curve.Params().N
-	r = maybeCorruptECDSAValue(r, e.bugs.BadECDSAR, order)
-	s = maybeCorruptECDSAValue(s, e.bugs.BadECDSAS, order)
-	return asn1.Marshal(ECDSASignature{r, s})
-}
-
-func getSigner(bugs *CertificateBugs, rand io.Reader, sigAlg signatureAlgorithm) (*ECDSASigner, error) {
+// TODO(claucece): as this is used beyond DCs, it needs to support all the other algos.
+func getSigner(bugs *CertificateBugs, rand io.Reader, sigAlg signatureAlgorithm) (*Signer, error) {
 	switch sigAlg {
 	case signatureECDSAWithSHA1:
-		return &ECDSASigner{bugs, nil, crypto.SHA1, nil, rand}, nil
+		return &Signer{bugs, nil, crypto.SHA1, nil, rand, true}, nil
 	case signatureECDSAWithP256AndSHA256:
-		return &ECDSASigner{bugs, elliptic.P256(), crypto.SHA256, nil, rand}, nil
+		return &Signer{bugs, elliptic.P256(), crypto.SHA256, nil, rand, true}, nil
 	case signatureECDSAWithP384AndSHA384:
-		return &ECDSASigner{bugs, elliptic.P384(), crypto.SHA384, nil, rand}, nil
+		return &Signer{bugs, elliptic.P384(), crypto.SHA384, nil, rand, true}, nil
 	case signatureECDSAWithP521AndSHA512:
-		return &ECDSASigner{bugs, elliptic.P521(), crypto.SHA512, nil, rand}, nil
+		return &Signer{bugs, elliptic.P521(), crypto.SHA512, nil, rand, true}, nil
+	case signatureEd25519:
+		return &Signer{bugs, nil, directSigning, nil, rand, false}, nil
 	}
 
 	return nil, fmt.Errorf("unsupported signature algorithm %04x", sigAlg)

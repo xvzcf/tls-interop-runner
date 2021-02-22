@@ -18,8 +18,9 @@ const usage = `Usage:
 
     $ util -make-root -out root.crt -key-out root.key -host root.com
     $ util -make-intermediate -cert-in parent.crt -key-in parent.key -out child.crt -key-out child.key -host example.com
-    $ util -make-dc -cert-in leaf.crt -key-in leaf.key -out dc.txt
+    $ util -make-dc -cert-in leaf.crt -key-in leaf.key -alg algorithm -out dc.txt
     $ util -make-ech-key -cert-in client-facing.crt -out ech_configs -key-out ech_key
+    $ util -make-ech-key -cert-in client_facing.crt -out ech_configs -key-out ech_key
 
     Note: This is a barebones CLI intended for basic usage/debugging.
 `
@@ -37,6 +38,7 @@ func main() {
 		outPath              = flag.String("out", "", "")
 		outKeyPath           = flag.String("key-out", "", "")
 		hostName             = flag.String("host", "", "")
+		algorithm            = flag.Uint("alg", 0, "")
 	)
 	flag.Parse()
 	if *help {
@@ -46,11 +48,11 @@ func main() {
 	if *makeRootCert && (*outPath == "" || *outKeyPath == "" || *hostName == "") {
 		log.Fatalln("ERROR: -make-root requires -out and -key-out -host")
 	}
-	if *makeIntermediateCert && (*inCertPath == "" || *outKeyPath == "" || *inKeyPath == "" || *outKeyPath == "" || *hostName == "") {
+	if *makeIntermediateCert && (*inCertPath == "" || *outKeyPath == "" || *inKeyPath == "" || *outPath == "" || *hostName == "") {
 		log.Fatalln("ERROR: -make-intermediate requires -cert-in, -key-in, -out, -key-out, -host")
 	}
-	if *makeDC && (*inCertPath == "" || *outPath == "" || *inKeyPath == "") {
-		log.Fatalln("ERROR: -make-dc requires -cert-in, -key-in, -out")
+	if *makeDC && (*inCertPath == "" || *outPath == "" || *inKeyPath == "" || *algorithm == 0) {
+		log.Fatalln("ERROR: -make-dc requires -cert-in, -key-in, -alg, -out")
 	}
 	if *makeECH && (*hostName == "") {
 		log.Fatalln("ERROR: -make-ech requires -host")
@@ -85,7 +87,7 @@ func main() {
 		makeDelegatedCredential(
 			&Config{
 				ValidFor:           24 * time.Hour,
-				SignatureAlgorithm: signatureECDSAWithP521AndSHA512,
+				SignatureAlgorithm: signatureAlgorithm(*algorithm),
 			},
 			&Config{},
 			*inCertPath,

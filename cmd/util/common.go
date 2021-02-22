@@ -91,6 +91,7 @@ type Config struct {
 	// implementations.
 	Bugs CertificateBugs
 
+	// SignatureAlgorithm defines the signature algorithm for certificates or delegated credentials
 	SignatureAlgorithm signatureAlgorithm
 }
 
