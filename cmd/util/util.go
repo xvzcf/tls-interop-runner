@@ -14,7 +14,7 @@ import (
 
 const usage = `Usage:
 
-    $ util [-help] {-make-root|-make-intermediate|-make-dc|-make-dcvectors} [-cert-in PATH] [-key-in PATH] [-out PATH] [-key-out PATH]
+    $ util [-help] {-make-root|-make-intermediate|-make-dc} [-cert-in PATH] [-key-in PATH] [-out PATH] [-key-out PATH]
 
     $ util -make-root -out root.crt -key-out root.key -host root.com
     $ util -make-intermediate -cert-in parent.crt -key-in parent.key -out child.crt -key-out child.key -host example.com
