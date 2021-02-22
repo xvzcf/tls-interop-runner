@@ -7,7 +7,7 @@
 // SPDX-FileCopyrightText: 2009 The Go Authors
 // SPDX-License-Identifier: BSD-3-Clause
 
-package main
+package utils
 
 import (
 	"crypto"
@@ -20,9 +20,9 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/big"
 	"net"
 	"net/mail"
@@ -31,29 +31,39 @@ import (
 	"path/filepath"
 )
 
-// makeRootCertificate is based on code found in https://github.com/FiloSottile/mkcert
-func makeRootCertificate(config *Config, outPath string, outKeyPath string) {
+// MakeRootCertificate is based on code found in https://github.com/FiloSottile/mkcert
+func MakeRootCertificate(config *Config, outPath string, outKeyPath string) error {
 	signer, err := getSigner(&config.Bugs, config.rand(), config.SignatureAlgorithm)
-	fatalIfErr(err, "failed to get Signer")
+	if err != nil {
+		return err
+	}
 
 	priv, pub, err := signer.GenerateKey()
-	fatalIfErr(err, "failed to generate private key")
+	if err != nil {
+		return err
+	}
 
 	spkiASN1, err := x509.MarshalPKIXPublicKey(pub)
-	fatalIfErr(err, "failed to encode public key")
+	if err != nil {
+		return err
+	}
 
 	var spki struct {
 		Algorithm        pkix.AlgorithmIdentifier
 		SubjectPublicKey asn1.BitString
 	}
 	_, err = asn1.Unmarshal(spkiASN1, &spki)
-	fatalIfErr(err, "failed to decode public key")
+	if err != nil {
+		return err
+	}
 
 	skid := sha1.Sum(spki.SubjectPublicKey.Bytes)
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(config.rand(), serialNumberLimit)
-	fatalIfErr(err, "failed to generate serial number")
+	if err != nil {
+		return err
+	}
 
 	tpl := &x509.Certificate{
 		SerialNumber: serialNumber,
@@ -79,33 +89,47 @@ func makeRootCertificate(config *Config, outPath string, outKeyPath string) {
 	}
 
 	cert, err := x509.CreateCertificate(config.rand(), tpl, tpl, pub, priv)
-	fatalIfErr(err, "failed to generate CA certificate")
+	if err != nil {
+		return err
+	}
 
 	privDER, err := x509.MarshalPKCS8PrivateKey(priv)
-	fatalIfErr(err, "failed to encode CA key")
+	if err != nil {
+		return err
+	}
 
 	err = ioutil.WriteFile(outKeyPath, pem.EncodeToMemory(
 		&pem.Block{Type: "PRIVATE KEY", Bytes: privDER}), 0600)
-	fatalIfErr(err, "failed to write CA key")
+	if err != nil {
+		return err
+	}
 
 	err = ioutil.WriteFile(outPath, pem.EncodeToMemory(
 		&pem.Block{Type: "CERTIFICATE", Bytes: cert}), 0644)
-	fatalIfErr(err, "failed to write CA cert")
+	if err != nil {
+		return err
+	}
 
-	log.Printf("Created a new root certificate.\n")
+	return nil
 }
 
-// makeIntermediateCertificate is based on code found in https://github.com/FiloSottile/mkcert
-func makeIntermediateCertificate(config *Config, inCertPath string, inKeyPath string, outPath string, outKeyPath string) {
+// MakeIntermediateCertificate is based on code found in https://github.com/FiloSottile/mkcert
+func MakeIntermediateCertificate(config *Config, inCertPath string, inKeyPath string, outPath string, outKeyPath string) error {
 	signer, err := getSigner(&config.Bugs, config.rand(), config.SignatureAlgorithm)
-	fatalIfErr(err, "failed to get Signer")
+	if err != nil {
+		return err
+	}
 
 	priv, pub, err := signer.GenerateKey()
-	fatalIfErr(err, "failed to generate private key")
+	if err != nil {
+		return err
+	}
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(config.rand(), serialNumberLimit)
-	fatalIfErr(err, "failed to generate serial number")
+	if err != nil {
+		return err
+	}
 
 	tpl := &x509.Certificate{
 		SerialNumber: serialNumber,
@@ -145,45 +169,65 @@ func makeIntermediateCertificate(config *Config, inCertPath string, inKeyPath st
 	}
 
 	parentCertPEMBlock, err := ioutil.ReadFile(filepath.Join(inCertPath))
-	fatalIfErr(err, "failed to read the input certificate")
+	if err != nil {
+		return err
+	}
 	parentCertDERBlock, _ := pem.Decode(parentCertPEMBlock)
 	if parentCertDERBlock == nil || parentCertDERBlock.Type != "CERTIFICATE" {
-		log.Fatalln("ERROR: failed to read input certificate: unexpected content")
+		return errors.New("failed to read input certificate: unexpected content")
 	}
 	parentCert, err := x509.ParseCertificate(parentCertDERBlock.Bytes)
-	fatalIfErr(err, "failed to parse input certificate")
+	if err != nil {
+		return err
+	}
 
 	parentKeyPEMBlock, err := ioutil.ReadFile(filepath.Join(inKeyPath))
-	fatalIfErr(err, "failed to read the key")
+	if err != nil {
+		return err
+	}
 	parentKeyDERBlock, _ := pem.Decode(parentKeyPEMBlock)
 	if parentKeyDERBlock == nil || parentKeyDERBlock.Type != "PRIVATE KEY" {
-		log.Fatalln("ERROR: failed to read the key: unexpected content")
+		return errors.New("failed to read input key: unexpected content")
 	}
 	parentKey, err := x509.ParsePKCS8PrivateKey(parentKeyDERBlock.Bytes)
-	fatalIfErr(err, "failed to parse the key")
+	if err != nil {
+		return err
+	}
 
 	cert, err := x509.CreateCertificate(config.rand(), tpl, parentCert, pub, parentKey)
-	fatalIfErr(err, "failed to generate certificate")
+	if err != nil {
+		return err
+	}
 
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert})
 	privDER, err := x509.MarshalPKCS8PrivateKey(priv)
-	fatalIfErr(err, "failed to encode certificate key")
+	if err != nil {
+		return err
+	}
 	privPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privDER})
 
 	if outPath == outKeyPath {
 		err = ioutil.WriteFile(outKeyPath, append(certPEM, privPEM...), 0600)
-		fatalIfErr(err, "failed to save certificate and key")
+		if err != nil {
+			return err
+		}
 	} else {
 		err = ioutil.WriteFile(outPath, certPEM, 0644)
-		fatalIfErr(err, "failed to save certificate")
+		if err != nil {
+			return err
+		}
+
 		err = ioutil.WriteFile(outKeyPath, privPEM, 0600)
-		fatalIfErr(err, "failed to save certificate key")
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-// makeDelegatedCredential is based on code found in https://boringssl.googlesource.com/boringssl/+/refs/heads/master/ssl/test/runner/
+// MakeDelegatedCredential is based on code found in https://boringssl.googlesource.com/boringssl/+/refs/heads/master/ssl/test/runner/
 // It generates a delegated credential for the party that asks for it
-func makeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPath string, inKeyPath string, outPath string) {
+func MakeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPath string, inKeyPath string, outPath string) error {
 	lifetimeSecs := int64(config.ValidFor.Seconds())
 	var dc []byte
 	// https://tools.ietf.org/html/draft-ietf-tls-subcerts-09#section-4
@@ -191,55 +235,69 @@ func makeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPat
 	dc = append(dc, byte(config.SignatureAlgorithm>>8), byte(config.SignatureAlgorithm))
 
 	signer, err := getSigner(&config.Bugs, config.rand(), config.SignatureAlgorithm)
-	fatalIfErr(err, "failed to get Signer")
+	if err != nil {
+		return err
+	}
 
 	priv, pub, err := signer.GenerateKey()
-	fatalIfErr(err, "failed to generate private key")
+	if err != nil {
+		return err
+	}
 
 	privPKCS8, err := x509.MarshalPKCS8PrivateKey(priv)
-	fatalIfErr(err, "failed to marshal private Key")
+	if err != nil {
+		return err
+	}
 
 	pubBytes, err := x509.MarshalPKIXPublicKey(pub)
-	fatalIfErr(err, "failed to marshal public Key")
+	if err != nil {
+		return err
+	}
 
 	dc = append(dc, byte(len(pubBytes)>>16), byte(len(pubBytes)>>8), byte(len(pubBytes)))
 	dc = append(dc, pubBytes...)
 
 	parentCertPEMBlock, err := ioutil.ReadFile(filepath.Join(inCertPath))
-	fatalIfErr(err, "failed to read the input certificate")
+	if err != nil {
+		return err
+	}
 	parentCertDERBlock, _ := pem.Decode(parentCertPEMBlock)
 	if parentCertDERBlock == nil || parentCertDERBlock.Type != "CERTIFICATE" {
-		log.Fatalln("ERROR: failed to read the certificate: unexpected content")
+		return errors.New("ERROR: failed to read the certificate: unexpected content")
 	}
 
 	parentKeyPEMBlock, err := ioutil.ReadFile(filepath.Join(inKeyPath))
-	fatalIfErr(err, "failed to read the key")
+	if err != nil {
+		return err
+	}
 	parentKeyDERBlock, _ := pem.Decode(parentKeyPEMBlock)
 	if parentKeyDERBlock == nil || parentKeyDERBlock.Type != "PRIVATE KEY" {
-		log.Fatalln("ERROR: failed to read the key: unexpected content")
+		return errors.New("ERROR: failed to read the key: unexpected content")
 	}
 	parentKey, err := x509.ParsePKCS8PrivateKey(parentKeyDERBlock.Bytes)
-	fatalIfErr(err, "failed to parse the key")
+	if err != nil {
+		return err
+	}
 
-	var parentSigAlg signatureAlgorithm
+	var parentSigAlg uint16
 
 	parentPubKey := parentKey.(crypto.Signer).Public()
 	switch pk := parentPubKey.(type) {
 	case *ecdsa.PublicKey:
 		curveName := pk.Curve.Params().Name
 		if curveName == "P-256" {
-			parentSigAlg = signatureECDSAWithP256AndSHA256
+			parentSigAlg = SignatureECDSAWithP256AndSHA256
 		} else if curveName == "P-384" {
-			parentSigAlg = signatureECDSAWithP384AndSHA384
+			parentSigAlg = SignatureECDSAWithP384AndSHA384
 		} else if curveName == "P-521" {
-			parentSigAlg = signatureECDSAWithP521AndSHA512
+			parentSigAlg = SignatureECDSAWithP521AndSHA512
 		} else {
-			log.Fatalf("ERROR: public key unsupported\n")
+			return errors.New("ERROR: public key unsupported\n")
 		}
 	case ed25519.PublicKey:
-		parentSigAlg = signatureEd25519
+		parentSigAlg = SignatureEd25519
 	default:
-		log.Fatalf("ERROR: public key unsupported\n")
+		return errors.New("ERROR: public key unsupported\n")
 	}
 
 	dc = append(dc, byte(parentSigAlg>>8), byte(parentSigAlg))
@@ -257,54 +315,69 @@ func makeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPat
 	messageToSign = append(messageToSign, dc...)
 
 	parentSigner, err := getSigner(&parentSignConfig.Bugs, parentSignConfig.rand(), parentSigAlg)
-	fatalIfErr(err, "failed to get Signer")
+	if err != nil {
+		return err
+	}
 
 	parentSignature, err := parentSigner.SignWithKey(parentKey, messageToSign)
-	fatalIfErr(err, "failed to get parent signature")
+	if err != nil {
+		return err
+	}
 
 	dc = append(dc, byte(len(parentSignature)>>8), byte(len(parentSignature)))
 	dc = append(dc, parentSignature...)
 
 	dcSerialized := fmt.Sprintf("%x,%x", dc, privPKCS8)
 	err = ioutil.WriteFile(outPath, []byte(dcSerialized), 0644)
-	fatalIfErr(err, "failed to save DC")
-	log.Printf("\nThe generated DC (format: DC, privkey) using algorithm %x is at \"%s\" \n\n", config.SignatureAlgorithm, outPath)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-// makeECHKey generates an ECH config and corresponding key, writing the key to
+// MakeECHKey generates an ECH config and corresponding key, writing the key to
 // outKeyPath and the config to outPath. The config is encoded as an ECHConfigs
 // structure as specified by draft-ietf-tls-esni-09 (i.e., it is prefixed by
 // 16-bit integer that encodes its length). This is the format as it is consumed
 // by the client.
-func makeECHKey(template ECHConfigTemplate, outPath, outKeyPath string) {
-	keyGenErrMsg := "failed to generate ECH key"
-
+func MakeECHKey(template ECHConfigTemplate, outPath, outKeyPath string) error {
 	// Ensure that the public name can be used as the SNI.
 	if !isDomainName(template.PublicName) {
-		fatalIfErr(fmt.Errorf("'%s' is not a fully qualified domain name", template.PublicName), keyGenErrMsg)
+		return fmt.Errorf("'%s' is not a fully qualified domain name", template.PublicName)
 	}
 
 	// Generate ECH config and key.
 	key, err := GenerateECHKey(template)
-	fatalIfErr(err, keyGenErrMsg)
+	if err != nil {
+		return err
+	}
 
 	// Write the key to disk.
 	outKey, err := os.OpenFile(outKeyPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	fatalIfErr(err, keyGenErrMsg)
+	if err != nil {
+		return err
+	}
 	defer outKey.Close()
 	outKeyEncoder := base64.NewEncoder(base64.StdEncoding, outKey)
 	defer outKeyEncoder.Close()
 	_, err = outKeyEncoder.Write(key.Marshal())
-	fatalIfErr(err, keyGenErrMsg)
+	if err != nil {
+		return err
+	}
 
 	// Write the config to disk.
 	out, err := os.Create(outPath)
-	fatalIfErr(err, keyGenErrMsg)
+	if err != nil {
+		return err
+	}
 	defer out.Close()
 	outEncoder := base64.NewEncoder(base64.StdEncoding, out)
 	defer outEncoder.Close()
 	_, err = outEncoder.Write(MarshalECHConfigs([]ECHKey{*key}))
-	fatalIfErr(err, keyGenErrMsg)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // isDomainName checks if a string is a presentation-format domain name
