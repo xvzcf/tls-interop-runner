@@ -30,6 +30,21 @@ type Signer struct {
 	ecdsa bool
 }
 
+func maybeCorruptECDSASignature(typeOfCorruption BadValue, signature []byte) []byte {
+	switch typeOfCorruption {
+	case BadValueNone:
+		return signature
+	case BadValueZero:
+		signature = nil
+		return signature
+	case BadValueLarge:
+		signature = append(signature, 0)
+		return signature
+	default:
+		panic("unknown corruption type")
+	}
+}
+
 // GenerateKey generates a public and private key pair.
 // TODO: as this is used beyond DCs, it needs to support all the other algos.
 func (e *Signer) GenerateKey() (crypto.PrivateKey, crypto.PublicKey, error) {
