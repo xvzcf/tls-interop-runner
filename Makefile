@@ -21,7 +21,7 @@ validatepcap: $(VALIDATEPCAP_SRCS)
 	go get ./cmd/validatepcap/...
 	go build -o ${VALIDATEPCAP} ./cmd/validatepcap/...
 
-# TODO: replace this makefile creation with golden files created by golang themselves
+# TODO(claucece): replace this makefile creation with golden files created by golang itself
 algorithms := 0x0807 0x0403 0x0503 0x0603
 r = $(shell awk -v min=1 -v max=3 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
 alg = $(word $(call r), $(algorithms))

@@ -46,7 +46,7 @@ func maybeCorruptECDSASignature(typeOfCorruption BadValue, signature []byte) []b
 }
 
 // GenerateKey generates a public and private key pair.
-// TODO: as this is used beyond DCs, it needs to support all the other algos.
+// TODO(claucece): as this is used beyond DCs, it needs to support all the other algos.
 func (e *Signer) GenerateKey() (crypto.PrivateKey, crypto.PublicKey, error) {
 	var privK crypto.PrivateKey
 	var pubK crypto.PublicKey
@@ -105,7 +105,7 @@ func (e *Signer) SignWithKey(key crypto.PrivateKey, msg []byte) ([]byte, error) 
 	return sig, nil
 }
 
-// TODO: as this is used beyond DCs, it needs to support all the other algos.
+// TODO(claucece): as this is used beyond DCs, it needs to support all the other algos.
 func getSigner(bugs *CertificateBugs, rand io.Reader, sigAlg signatureAlgorithm) (*Signer, error) {
 	switch sigAlg {
 	case signatureECDSAWithSHA1:
