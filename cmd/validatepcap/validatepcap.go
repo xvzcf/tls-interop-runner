@@ -7,16 +7,15 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os/exec"
-	"strconv"
-	"strings"
+
+	"github.com/xvzcf/tls-interop-runner/internal/pcap"
 )
 
 const usage = `Usage:
 
     $ validatepcap [-help] {-pcap-in} {-keylog-in} {-testcase}
 
-    Requires tshark with version >= 3.2.0
+    Requires tshark with version >= 3.2.0 to be in the PATH
 `
 
 func main() {
@@ -34,38 +33,21 @@ func main() {
 		return
 	}
 
-	tsharkPath, err := exec.LookPath("tshark")
-	fatalIfErr(err, "tshark not found in PATH.")
-
-	tsharkConfiguration, err := exec.Command(tsharkPath, "--version").Output()
-	fatalIfErr(err, "Could not retrieve tshark configuration.")
-
-	tsharkVersionLine := strings.Split(string(tsharkConfiguration), "\n")[0]
-	tsharkVersionFields := strings.Split(strings.Fields(tsharkVersionLine)[2], ".")
-	tsharkMajorVersion, err := strconv.Atoi(tsharkVersionFields[0])
-	fatalIfErr(err, "Could not retrieve tshark major version.")
-
-	tsharkMinorVersion, err := strconv.Atoi(tsharkVersionFields[1])
-	fatalIfErr(err, "Could not retrieve tshark minor version.")
-
-	if tsharkMajorVersion < 3 || tsharkMinorVersion < 2 {
-		log.Fatalf("Requires tshark with version >= 3.2.0.")
+	err := pcap.FindTshark()
+	if err != nil {
+		log.Fatalf("ERROR: Tshark not found: %s\n", err)
 	}
 
-	transcript, err := parsePCap(tsharkPath, *pcapPath, *keylogPath)
-	fatalIfErr(err, "Could not parse supplied PCap")
+	transcript, err := pcap.Parse(*pcapPath, *keylogPath)
+	if err != nil {
+		log.Fatalf("ERROR: Could not parse pcap: %s\n", err)
+	}
 
-	err = validateTranscript(transcript, *testcase)
+	err = pcap.Validate(transcript, *testcase)
 	if err != nil {
 		log.Fatalf("Testcase %s failed: %s", *testcase, err)
 	} else {
 		fmt.Printf("Testcase %s passed.\n", *testcase)
 	}
 
-}
-
-func fatalIfErr(err error, msg string) {
-	if err != nil {
-		log.Fatalf("ERROR: %s: %s\n", msg, err)
-	}
 }

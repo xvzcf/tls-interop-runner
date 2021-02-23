@@ -7,21 +7,14 @@
 // This file is based on code found in
 // https://boringssl.googlesource.com/boringssl/+/refs/heads/master/ssl/test/runner/
 
-package main
+package utils
 
 import (
 	"crypto/rand"
 	"io"
-	"log"
 	"math/big"
 	"time"
 )
-
-func fatalIfErr(err error, msg string) {
-	if err != nil {
-		log.Fatalf("ERROR: %s: %s\n", msg, err)
-	}
-}
 
 type dsaSignature struct {
 	R, S *big.Int
@@ -29,30 +22,28 @@ type dsaSignature struct {
 
 type ECDSASignature dsaSignature
 
-type signatureAlgorithm uint16
-
 const (
 	// RSASSA-PKCS1-v1_5 algorithms
-	signatureRSAPKCS1WithMD5    signatureAlgorithm = 0x0101
-	signatureRSAPKCS1WithSHA1   signatureAlgorithm = 0x0201
-	signatureRSAPKCS1WithSHA256 signatureAlgorithm = 0x0401
-	signatureRSAPKCS1WithSHA384 signatureAlgorithm = 0x0501
-	signatureRSAPKCS1WithSHA512 signatureAlgorithm = 0x0601
+	SignatureRSAPKCS1WithMD5    uint16 = 0x0101
+	SignatureRSAPKCS1WithSHA1   uint16 = 0x0201
+	SignatureRSAPKCS1WithSHA256 uint16 = 0x0401
+	SignatureRSAPKCS1WithSHA384 uint16 = 0x0501
+	SignatureRSAPKCS1WithSHA512 uint16 = 0x0601
 
 	// ECDSA algorithms
-	signatureECDSAWithSHA1          signatureAlgorithm = 0x0203
-	signatureECDSAWithP256AndSHA256 signatureAlgorithm = 0x0403
-	signatureECDSAWithP384AndSHA384 signatureAlgorithm = 0x0503
-	signatureECDSAWithP521AndSHA512 signatureAlgorithm = 0x0603
+	SignatureECDSAWithSHA1          uint16 = 0x0203
+	SignatureECDSAWithP256AndSHA256 uint16 = 0x0403
+	SignatureECDSAWithP384AndSHA384 uint16 = 0x0503
+	SignatureECDSAWithP521AndSHA512 uint16 = 0x0603
 
 	// RSASSA-PSS algorithms
-	signatureRSAPSSWithSHA256 signatureAlgorithm = 0x0804
-	signatureRSAPSSWithSHA384 signatureAlgorithm = 0x0805
-	signatureRSAPSSWithSHA512 signatureAlgorithm = 0x0806
+	SignatureRSAPSSWithSHA256 uint16 = 0x0804
+	SignatureRSAPSSWithSHA384 uint16 = 0x0805
+	SignatureRSAPSSWithSHA512 uint16 = 0x0806
 
 	// EdDSA algorithms
-	signatureEd25519 signatureAlgorithm = 0x0807
-	signatureEd448   signatureAlgorithm = 0x0808
+	SignatureEd25519 uint16 = 0x0807
+	SignatureEd448   uint16 = 0x0808
 )
 
 type BadValue int
@@ -92,7 +83,7 @@ type Config struct {
 	Bugs CertificateBugs
 
 	// SignatureAlgorithm defines the signature algorithm for certificates or delegated credentials
-	SignatureAlgorithm signatureAlgorithm
+	SignatureAlgorithm uint16
 }
 
 func (c *Config) rand() io.Reader {

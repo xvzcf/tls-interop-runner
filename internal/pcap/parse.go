@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors
 // SPDX-License-Identifier: MIT
 
-package main
+package pcap
 
 import (
 	"bytes"
@@ -22,12 +22,15 @@ type serverHelloMsg struct {
 	version uint16
 }
 
-type tlsTranscript struct {
-	clientHello clientHelloMsg
-	serverHello serverHelloMsg
+type TLSTranscript struct {
+	ClientHello clientHelloMsg
+	ServerHello serverHelloMsg
 }
 
-func parsePCap(tsharkPath string, pcapPath string, keylogPath string) (transcript tlsTranscript, err error) {
+// Parse takes in a PCAP and Keylog file and passes them to Tshark, which
+// returns packet information formatted in newline-delimited JSON; this JSON
+// is parsed for TLS handshake messages.
+func Parse(pcapPath string, keylogPath string) (transcript TLSTranscript, err error) {
 	rawJSON, err := exec.Command(tsharkPath,
 		"-r", pcapPath,
 		"-d", "tcp.port==4433,tls",
@@ -112,18 +115,18 @@ func parsePCap(tsharkPath string, pcapPath string, keylogPath string) (transcrip
 	return transcript, err
 }
 
-func parseOutClientHello(raw map[string]interface{}, transcript *tlsTranscript) error {
+func parseOutClientHello(raw map[string]interface{}, transcript *TLSTranscript) error {
 	version, err := strconv.ParseUint(raw["tls_tls_handshake_version"].(string), 0, 16)
 	if err != nil {
 		return err
 	}
-	transcript.clientHello.version = uint16(version)
+	transcript.ClientHello.version = uint16(version)
 
-	transcript.clientHello.serverName = raw["tls_tls_handshake_extensions_server_name"].(string)
+	transcript.ClientHello.serverName = raw["tls_tls_handshake_extensions_server_name"].(string)
 
 	for _, val := range raw["tls_tls_handshake_extension_type"].([]interface{}) {
 		if val == "34" {
-			transcript.clientHello.supportsDC = true
+			transcript.ClientHello.supportsDC = true
 		}
 	}
 
@@ -132,17 +135,17 @@ func parseOutClientHello(raw map[string]interface{}, transcript *tlsTranscript) 
 		if err != nil {
 			return err
 		}
-		transcript.clientHello.supportedVersions = append(transcript.clientHello.supportedVersions, uint16(version))
+		transcript.ClientHello.supportedVersions = append(transcript.ClientHello.supportedVersions, uint16(version))
 	}
 	return nil
 }
 
-func parseOutServerHello(raw map[string]interface{}, transcript *tlsTranscript) error {
+func parseOutServerHello(raw map[string]interface{}, transcript *TLSTranscript) error {
 	version, err := strconv.ParseUint(raw["tls_tls_handshake_version"].(string), 0, 16)
 	if err != nil {
 		return err
 	}
-	transcript.serverHello.version = uint16(version)
+	transcript.ServerHello.version = uint16(version)
 
 	return nil
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cloudflare/circl/hpke"
+	"github.com/xvzcf/tls-interop-runner/internal/utils"
 )
 
 const usage = `Usage:
@@ -58,24 +59,30 @@ func main() {
 		log.Fatalln("ERROR: -make-ech requires -host")
 	}
 
+	var err error
 	if *makeRootCert {
-		makeRootCertificate(
-			&Config{
+		err = utils.MakeRootCertificate(
+			&utils.Config{
 				Hostnames:          []string{*hostName},
 				ValidFrom:          time.Now(),
 				ValidFor:           365 * 25 * time.Hour,
-				SignatureAlgorithm: signatureECDSAWithP521AndSHA512,
+				SignatureAlgorithm: utils.SignatureECDSAWithP521AndSHA512,
 			},
 			*outPath,
 			*outKeyPath,
 		)
+		if err != nil {
+			log.Fatalf("ERROR: %s\n", err)
+		}
+		log.Printf("Created a new root certificate at %s.\n", *outPath)
+		log.Printf("Created a new root key at %s.\n", *outKeyPath)
 	} else if *makeIntermediateCert {
-		makeIntermediateCertificate(
-			&Config{
+		err = utils.MakeIntermediateCertificate(
+			&utils.Config{
 				Hostnames:          []string{*hostName},
 				ValidFrom:          time.Now(),
 				ValidFor:           365 * 25 * time.Hour,
-				SignatureAlgorithm: signatureECDSAWithP256AndSHA256,
+				SignatureAlgorithm: utils.SignatureECDSAWithP256AndSHA256,
 				ForDC:              true,
 			},
 			*inCertPath,
@@ -83,22 +90,31 @@ func main() {
 			*outPath,
 			*outKeyPath,
 		)
+		if err != nil {
+			log.Fatalf("ERROR: %s\n", err)
+		}
+		log.Printf("Created a new intermediate certificate at %s.\n", *outPath)
+		log.Printf("Created a new intermediate key at %s.\n", *outKeyPath)
 	} else if *makeDC {
-		makeDelegatedCredential(
-			&Config{
+		err = utils.MakeDelegatedCredential(
+			&utils.Config{
 				ValidFor:           24 * time.Hour,
-				SignatureAlgorithm: signatureAlgorithm(*algorithm),
+				SignatureAlgorithm: uint16(*algorithm),
 			},
-			&Config{},
+			&utils.Config{},
 			*inCertPath,
 			*inKeyPath,
 			*outPath,
 		)
+		if err != nil {
+			log.Fatalf("ERROR: %s\n", err)
+		}
+		log.Printf("\nThe generated DC (format: DC, privkey) using algorithm %x is at \"%s\" \n\n", *algorithm, *outPath)
 	} else if *makeECH {
-		makeECHKey(
-			ECHConfigTemplate{
+		err = utils.MakeECHKey(
+			utils.ECHConfigTemplate{
 				PublicName: *hostName,
-				Version:    ECHVersionDraft09,
+				Version:    utils.ECHVersionDraft09,
 				KemId:      uint16(hpke.KEM_X25519_HKDF_SHA256),
 				KdfIds: []uint16{
 					uint16(hpke.KDF_HKDF_SHA256),
