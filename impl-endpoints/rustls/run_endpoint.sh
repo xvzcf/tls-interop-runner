@@ -11,7 +11,7 @@ echo "Using commit:" "$(cat commit.txt)"
 
 if [ "$ROLE" = "client" ]; then
     # TODO
-    true
+    exit 64
 else
     echo "Running rustls server."
     echo "Server params: $SERVER_PARAMS"

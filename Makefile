@@ -9,6 +9,9 @@ UTIL_SRCS = $(wildcard cmd/util/*.go)
 VALIDATEPCAP = ${BIN_DIR}/validatepcap
 VALIDATEPCAP_SRCS = $(wildcard cmd/validatepcap/*.go)
 
+RUNNER = ${BIN_DIR}/runner
+RUNNER_SRCS = $(wildcard cmd/runner/*.go)
+
 all: testinputs
 
 util: $(UTIL_SRCS)
@@ -20,6 +23,11 @@ validatepcap: $(VALIDATEPCAP_SRCS)
 	mkdir -p ${BIN_DIR}
 	go get ./cmd/validatepcap/...
 	go build -o ${VALIDATEPCAP} ./cmd/validatepcap/...
+
+runner: $(RUNNER_SRCS)
+	mkdir -p ${BIN_DIR}
+	go get ./cmd/runner/...
+	go build -o ${RUNNER} ./cmd/runner/...
 
 # TODO(claucece): replace this makefile creation with golden files created by golang itself
 algorithms := 0x0807 0x0403 0x0503 0x0603
