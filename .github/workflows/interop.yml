@@ -1,0 +1,56 @@
+name: interop
+on: push
+
+jobs:
+  config:
+    runs-on: ubuntu-latest
+    outputs:
+      servers: ${{ steps.set-servers.outputs.servers }}
+      clients: ${{ steps.set-clients.outputs.clients }}
+    steps:
+      - uses: actions/setup-go@v1
+        with:
+          go-version: '1.15'
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+          path: go/src/github.com/${{ github.repository }}
+      - name: Build test runner
+        run: make runner
+      - name: Determine servers
+        id: set-servers
+        run: |
+          SERVERS=$(./bin/runner --ci-list-servers)
+          echo $SERVERS
+          echo "::set-output name=servers::$SERVERS"
+      - name: Determine clients
+        id: set-clients
+        run: |
+          CLIENTS=$(./bin/runner --ci-list-clients)
+          echo $CLIENTS
+          echo "::set-output name=clients::$CLIENTS"
+  tests:
+    needs: [ config ]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        server: ${{ fromJson(needs.config.outputs.servers) }}
+        client: ${{ fromJson(needs.config.outputs.clients) }}
+    name: (${{ matrix.server }} - ${{ matrix.client }})
+    steps:
+      - uses: actions/setup-go@v1
+        with:
+          go-version: '1.15'
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+          path: go/src/github.com/${{ github.repository }}
+      - name: Build test runner
+        run: make runner
+      - name: Run tests
+        run: |
+          ( ./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --alltests || true) | tee output.txt
+          mkdir -p logs/${{ matrix.server }}_${{ matrix.client }}
+          mv output.txt logs/${{ matrix.server }}_${{ matrix.client }}/
