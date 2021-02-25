@@ -5,76 +5,58 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path"
 )
 
 const usage = `Usage:
 
-    $ runner [-help] {[-ci-mode] | [-client STRING] [-server STRING] [-testcase STRING]}
+    $ runner [-help] {[-client STRING] [-server STRING] [-testcase STRING]}
 
-    $ runner -ci-mode runs all possible combinations of tests
     $ runner -client=boringssl -server=cloudflare-go -testcase=dc runs just the dc test with the boringssl client and cloudflare-go server
+    $ runner -client=boringssl -server=cloudflare-go -alltestcases runs all test cases with the boringssl client and cloudflare-go server
 `
 
 var testInputsDir = path.Join("generated", "test-inputs")
 var testOutputsDir = path.Join("generated", "test-outputs")
 
-var CIModeOutputDir = path.Join("generated", "ci")
-
 func main() {
 	log.SetFlags(0)
 	var (
-		CIMode       = flag.Bool("ci-mode", false, "")
-		clientName   = flag.String("client", "", "")
-		serverName   = flag.String("server", "", "")
-		testcaseName = flag.String("testcase", "", "")
-		help         = flag.Bool("help", false, "")
+		clientName       = flag.String("client", "", "")
+		serverName       = flag.String("server", "", "")
+		testCaseName     = flag.String("testcase", "", "")
+		runAllTests      = flag.Bool("alltestcases", false, "")
+		listClientsForCI = flag.Bool("ci-list-clients", false, "")
+		listServersForCI = flag.Bool("ci-list-servers", false, "")
+		help             = flag.Bool("help", false, "")
 	)
 	flag.Parse()
 	if *help {
 		fmt.Print(usage)
-	} else if *CIMode {
-		var clients []endpoint
-		var servers []endpoint
-		for _, e := range endpoints {
-			if e.client && !e.regression {
-				clients = append(clients, e)
+	} else if *listClientsForCI {
+		fmt.Printf("[")
+		for i, e := range endpoints {
+			if i > 0 {
+				fmt.Printf(",")
 			}
-			if e.server && !e.regression {
-				servers = append(servers, e)
+			if e.client {
+				fmt.Printf("\"%s\"", e.name)
 			}
 		}
-		os.RemoveAll(CIModeOutputDir)
-		os.MkdirAll(CIModeOutputDir, os.ModePerm)
-		for name, t := range testcases {
-			err := t.generateInputs()
-			if err != nil {
-				log.Fatalf("Error generating test inputs for testcase %s: %s", name, err)
-			}
-			for _, client := range clients {
-				os.MkdirAll(path.Join(CIModeOutputDir, client.name), os.ModePerm)
-				for _, server := range servers {
-					os.MkdirAll(path.Join(CIModeOutputDir, client.name, server.name), os.ModePerm)
-					fmt.Printf("client=%s,server=%s,testcase=%s,", client.name, server.name, name)
-					err = t.run(client, server)
-					if err != nil {
-						log.Printf("Failure,run(): %s.\n", err)
-						continue
-					}
-					err = t.verify()
-					if err != nil {
-						log.Printf("Failure,verify(): %s.\n", err)
-						continue
-					}
-					log.Printf("Success")
-					err = os.Rename(testOutputsDir, path.Join(CIModeOutputDir, client.name, server.name, name))
-					if err != nil {
-						log.Printf("Error renaming: %s.", err)
-					}
+		fmt.Printf("]\n")
+	} else if *listServersForCI {
+		fmt.Printf("[")
+		for i, e := range endpoints {
+			if e.server {
+				if i > 0 {
+					fmt.Printf(",")
 				}
+				fmt.Printf("\"%s\"", e.name)
 			}
 		}
-	} else if *clientName != "" && *serverName != "" && *testcaseName != "" {
+		fmt.Printf("]\n")
+	} else if *clientName != "" && *serverName != "" && (*runAllTests || *testCaseName != "") {
 		var client, server endpoint
 		for _, e := range endpoints {
 			if e.name == *clientName {
@@ -90,22 +72,58 @@ func main() {
 				server = e
 			}
 		}
-		if t, ok := testcases[*testcaseName]; ok {
-			err := t.generateInputs()
-			if err != nil {
-				log.Fatalf("Failure,setup(): %s.\n", err)
+		log.Printf("Building %s and %s.\n", client.name, server.name)
+		cmd := exec.Command("docker-compose", "build")
+		env := os.Environ()
+		if server.regression {
+			env = append(env, "SERVER_SRC=./regression-endpoints")
+		} else {
+			env = append(env, "SERVER_SRC=./impl-endpoints")
+		}
+		env = append(env, fmt.Sprintf("SERVER=%s", server.name))
+		if client.regression {
+			env = append(env, "CLIENT_SRC=./regression-endpoints")
+		} else {
+			env = append(env, "CLIENT_SRC=./impl-endpoints")
+		}
+		env = append(env, fmt.Sprintf("CLIENT=%s", client.name))
+		cmd.Env = env
+		err := cmd.Run()
+		if err != nil {
+			log.Fatalf("docker-compose build: %s", err)
+		}
+		if *runAllTests {
+			for _, t := range testCases {
+				err = t.setup()
+				if err != nil {
+					log.Fatal("Error generating test inputs.")
+				}
+				err = t.run(client, server, false)
+				if err != nil {
+					log.Fatal(err.Error())
+				}
+				err = t.verify()
+				if err != nil {
+					log.Fatal(err.Error())
+				}
+				log.Printf("Success\n")
 			}
-			err = t.run(client, server)
+		} else if t, ok := testCases[*testCaseName]; ok {
+			err = t.setup()
 			if err != nil {
-				log.Fatalf("Failure,run(): %s.\n", err)
+				log.Fatal("Error generating test inputs.")
+			}
+			err = t.run(client, server, true)
+			if err != nil {
+				log.Fatal(err.Error())
 			}
 			err = t.verify()
 			if err != nil {
-				log.Fatalf("Failure,verify(): %s.\n", err)
+				log.Fatal(err.Error())
 			}
 			log.Printf("Success\n")
 		} else {
-			log.Printf("Testcase %s not found.\n", *testcaseName)
+			log.Fatalf("Testcase %s not found.\n", *testCaseName)
 		}
 	} else {
 		fmt.Print(usage)

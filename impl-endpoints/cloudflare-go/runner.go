@@ -212,7 +212,7 @@ func main() {
 
 	handler, ok := testCaseHandlers[*testCase]
 	if !ok {
-		log.Fatal("Skipped unimplemented test case.")
+		log.Println("Skipped unimplemented test case.")
 		os.Exit(64)
 	}
 
@@ -226,7 +226,7 @@ func main() {
 			log.Fatal(err)
 		}
 	} else {
-		log.Fatal("Skipped unimplemented role.")
+		log.Println("Skipped unimplemented role.")
 		os.Exit(64)
 	}
 }
