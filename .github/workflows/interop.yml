@@ -52,8 +52,8 @@ jobs:
           path: go/src/github.com/${{ github.repository }}
       - name: Enable IPv6 support
         run: sudo modprobe ip6table_filter
-      - name: Install Wireshark
-        run: sudo apt-get install wireshark
+      - name: Install Tshark
+        run: sudo apt-get -y install tshark
       - name: Build test runner
         run: make runner
         working-directory: go/src/github.com/${{ github.repository }}
