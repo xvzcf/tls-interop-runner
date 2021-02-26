@@ -4,15 +4,15 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 	"os/exec"
 	"path"
 )
 
 const usage = `Usage:
 
-    $ runner [--help] {--client STRING} {--server STRING} {--testcase STRING|--alltestcases} [--build]
+    $ runner [--help] {--client STRING} {--server STRING} {--testcase STRING|--alltestcases} [--build] [--build-network]
 
+    $ runner --build-network builds the network simulator image.
     $ runner --client=boringssl --server=cloudflare-go --build builds boringssl as a client and cloudflare-go as a server
     $ runner --client=boringssl --server=cloudflare-go --testcase=dc runs just the dc test with the boringssl client and cloudflare-go server
     $ runner --client=boringssl --server=cloudflare-go --alltestcases runs all test cases with the boringssl client and cloudflare-go server
@@ -24,33 +24,24 @@ var testOutputsDir = path.Join("generated", "test-outputs")
 func main() {
 	log.SetFlags(0)
 	var (
-		clientName       = flag.String("client", "", "")
-		serverName       = flag.String("server", "", "")
-		testCaseName     = flag.String("testcase", "", "")
-		buildEndpoints   = flag.Bool("build", false, "")
-		runAllTests      = flag.Bool("alltestcases", false, "")
-		listClientsForCI = flag.Bool("ci-list-clients", false, "")
-		listServersForCI = flag.Bool("ci-list-servers", false, "")
-		help             = flag.Bool("help", false, "")
+		clientName           = flag.String("client", "", "")
+		serverName           = flag.String("server", "", "")
+		testCaseName         = flag.String("testcase", "", "")
+		buildEndpoints       = flag.Bool("build", false, "")
+		buildNetwork         = flag.Bool("build-network", false, "")
+		runAllTests          = flag.Bool("alltestcases", false, "")
+		listInteropClients   = flag.Bool("list-interop-clients", false, "")
+		listInteropServers   = flag.Bool("list-interop-servers", false, "")
+		listInteropEndpoints = flag.Bool("list-interop-endpoints", false, "")
+		help                 = flag.Bool("help", false, "")
 	)
 	flag.Parse()
 	if *help {
 		fmt.Print(usage)
-	} else if *listClientsForCI {
+	} else if *listInteropClients {
 		fmt.Printf("[")
 		for i, e := range endpoints {
-			if i > 0 {
-				fmt.Printf(",")
-			}
-			if e.client {
-				fmt.Printf("\"%s\"", e.name)
-			}
-		}
-		fmt.Printf("]\n")
-	} else if *listServersForCI {
-		fmt.Printf("[")
-		for i, e := range endpoints {
-			if e.server {
+			if e.client && !e.regression {
 				if i > 0 {
 					fmt.Printf(",")
 				}
@@ -58,6 +49,34 @@ func main() {
 			}
 		}
 		fmt.Printf("]\n")
+	} else if *listInteropServers {
+		fmt.Printf("[")
+		for i, e := range endpoints {
+			if e.server && !e.regression {
+				if i > 0 {
+					fmt.Printf(",")
+				}
+				fmt.Printf("\"%s\"", e.name)
+			}
+		}
+		fmt.Printf("]\n")
+	} else if *listInteropEndpoints {
+		fmt.Printf("[")
+		for i, e := range endpoints {
+			if !e.regression {
+				if i > 0 {
+					fmt.Printf(",")
+				}
+				fmt.Printf("\"%s\"", e.name)
+			}
+		}
+		fmt.Printf("]\n")
+	} else if *buildNetwork {
+		cmd := exec.Command("docker", "build", "network", "--tag", "tls-interop-network")
+		err := cmd.Run()
+		if err != nil {
+			log.Fatalf("docker network build: %s", err)
+		}
 	} else if *clientName != "" && *serverName != "" && *buildEndpoints {
 		var client, server endpoint
 		for _, e := range endpoints {
@@ -74,25 +93,34 @@ func main() {
 				server = e
 			}
 		}
-		log.Printf("Building %s and %s.\n", client.name, server.name)
-		cmd := exec.Command("docker-compose", "build")
-		env := os.Environ()
-		if server.regression {
-			env = append(env, "SERVER_SRC=regression-endpoints")
-		} else {
-			env = append(env, "SERVER_SRC=impl-endpoints")
-		}
-		env = append(env, fmt.Sprintf("SERVER=%s", server.name))
+
+		log.Printf("Building %s.\n", client.name)
+		var location string
 		if client.regression {
-			env = append(env, "CLIENT_SRC=regression-endpoints")
+			location = "regression-endpoints"
 		} else {
-			env = append(env, "CLIENT_SRC=impl-endpoints")
+			location = "impl-endpoints"
 		}
-		env = append(env, fmt.Sprintf("CLIENT=%s", client.name))
-		cmd.Env = env
+		cmd := exec.Command("docker", "build",
+			fmt.Sprintf("%s/%s", location, client.name),
+			"--tag", fmt.Sprintf("tls-interop-%s", client.name))
 		err := cmd.Run()
 		if err != nil {
-			log.Fatalf("docker-compose build: %s", err)
+			log.Fatalf("docker build: %s", err)
+		}
+
+		log.Printf("Building %s.\n", server.name)
+		if server.regression {
+			location = "regression-endpoints"
+		} else {
+			location = "impl-endpoints"
+		}
+		cmd = exec.Command("docker", "build",
+			fmt.Sprintf("%s/%s", location, server.name),
+			"--tag", fmt.Sprintf("tls-interop-%s", server.name))
+		err = cmd.Run()
+		if err != nil {
+			log.Fatalf("docker build: %s", err)
 		}
 	} else if *clientName != "" && *serverName != "" && (*runAllTests || *testCaseName != "") {
 		var client, server endpoint

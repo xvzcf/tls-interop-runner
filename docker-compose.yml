@@ -5,8 +5,7 @@ version: "2.4"
 
 services:
   network:
-    image: network
-    build: network
+    image: tls-interop-network
     container_name: network
     hostname: network
     stdin_open: true
@@ -26,8 +25,7 @@ services:
         ipv6_address: fd00:cafe:cafe:100::2
 
   server:
-    image: ${SERVER}
-    build: ${SERVER_SRC}/${SERVER}
+    image: tls-interop-${SERVER}
     container_name: server
     hostname: server
     stdin_open: true
@@ -53,8 +51,7 @@ services:
       - "client:193.167.0.100"
 
   client:
-    image: ${CLIENT}
-    build: ${CLIENT_SRC}/${CLIENT}
+    image: tls-interop-${CLIENT}
     container_name: client
     hostname: client
     stdin_open: true

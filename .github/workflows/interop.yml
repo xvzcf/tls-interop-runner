@@ -5,6 +5,7 @@ jobs:
   config:
     runs-on: ubuntu-latest
     outputs:
+      endpoints: ${{ steps.set-clients.outputs.endpoints }}
       servers: ${{ steps.set-servers.outputs.servers }}
       clients: ${{ steps.set-clients.outputs.clients }}
     steps:
@@ -18,22 +19,74 @@ jobs:
       - name: Build test runner
         run: make runner
         working-directory: go/src/github.com/${{ github.repository }}
-      - name: Determine clients
+      - name: List interop endpoints
+        id: set-interop-endpoints
+        run: |
+          ENDPOINTS=$(./bin/runner --list-interop-endpoints)
+          echo $ENDPOINTS
+          echo "::set-output name=endpoints::$ENDPOINTS"
+        working-directory: go/src/github.com/${{ github.repository }}
+      - name: Determine interop clients
         id: set-clients
         run: |
-          CLIENTS=$(./bin/runner --ci-list-clients)
+          CLIENTS=$(./bin/runner --list-interop-clients)
           echo $CLIENTS
           echo "::set-output name=clients::$CLIENTS"
         working-directory: go/src/github.com/${{ github.repository }}
-      - name: Determine servers
+      - name: Determine interop servers
         id: set-servers
         run: |
-          SERVERS=$(./bin/runner --ci-list-servers)
+          SERVERS=$(./bin/runner --list-interop-servers)
           echo $SERVERS
           echo "::set-output name=servers::$SERVERS"
         working-directory: go/src/github.com/${{ github.repository }}
-  tests:
+
+  build-save-network:
+    runs-on: ubuntu-latest
+    name: Build network
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Run docker build
+        run: docker build network --tag tls-interop-network
+      - name: Save Docker image
+        run: |
+          docker save tls-interop-network | gzip --best > network.tar.gz
+          du -sh network.tar.gz
+      - name: Upload result
+        uses: actions/upload-artifact@v2
+        with:
+          name: network
+          path: network.tar.gz
+          if-no-files-found: error
+
+  build-save-endpoints:
     needs: [ config ]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        endpoint: ${{ fromJson(needs.config.outputs.endpoints) }}
+    name: Build ${{ matrix.endpoint }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Run docker build
+        run: docker build impl-endpoints/${{ matrix.endpoint }} --tag tls-interop-${{ matrix.endpoint }}
+      - name: Save Docker image
+        run: |
+          docker save tls-interop-${{ matrix.endpoint }} | gzip --best > ${{ matrix.endpoint }}.tar.gz
+          du -sh ${{ matrix.endpoint }}.tar.gz
+      - name: Upload result
+        uses: actions/upload-artifact@v2
+        with:
+          name: endpoint-${{ matrix.endpoint }}
+          path: ${{ matrix.endpoint }}.tar.gz
+          if-no-files-found: error
+
+  tests:
+    needs: [ config, build-save-network, build-save-endpoints ]
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
@@ -57,12 +110,30 @@ jobs:
           sudo add-apt-repository -y ppa:wireshark-dev/stable
           sudo apt-get update
           echo 'no' | sudo apt-get -y install tshark
+      - name: Download network image
+        uses: actions/download-artifact@v2
+        with:
+          name: network
+      - name: Download ${{ matrix.client }} Docker endpoint
+        uses: actions/download-artifact@v2
+        with:
+          name: endpoint-${{ matrix.client }}
+      - name: Download ${{ matrix.server }} Docker endpoint
+        if: ${{ matrix.server != matrix.client }}
+        uses: actions/download-artifact@v2
+        with:
+          name: endpoint-${{ matrix.server }}
+      - name: Load docker images
+        run: |
+          docker load --input network.tar.gz
+          docker load --input ${{ matrix.client }}.tar.gz
+          docker load --input ${{ matrix.server }}.tar.gz
+      - run: docker image ls
       - name: Build test runner
         run: make runner
         working-directory: go/src/github.com/${{ github.repository }}
       - name: Run tests
         run: |
-          ./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --build
           ./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --alltestcases
           mkdir -p logs/${{ matrix.server }}_${{ matrix.client }}
           mv output.txt logs/${{ matrix.server }}_${{ matrix.client }}/
