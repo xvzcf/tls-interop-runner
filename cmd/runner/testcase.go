@@ -157,7 +157,7 @@ func (t testCaseDC) run(client endpoint, server endpoint, verbose bool) error {
 
 	err := cmd.Start()
 	if err != nil {
-		return &testError{err: fmt.Sprintf("docker-compose up: %s", err), funcName: "run"}
+		return &testError{err: fmt.Sprintf("docker-compose up start(): %s", err), funcName: "run"}
 	}
 	err = waitWithTimeout(cmd, t.timeout)
 	if err != nil {
@@ -165,6 +165,7 @@ func (t testCaseDC) run(client endpoint, server endpoint, verbose bool) error {
 			return &testError{err: fmt.Sprintf("docker-compose up: %s", err), funcName: "run", unsupported: true}
 		}
 		return &testError{err: fmt.Sprintf("docker-compose up: %s", err), funcName: "run"}
+		print(cmdOut.String())
 	}
 	if verbose {
 		print(cmdOut.String())

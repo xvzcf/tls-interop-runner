@@ -11,10 +11,11 @@ import (
 
 const usage = `Usage:
 
-    $ runner [-help] {[-client STRING] [-server STRING] [-testcase STRING]}
+    $ runner [--help] {--client STRING} {--server STRING} {--testcase STRING|--alltestcases} [--build]
 
-    $ runner -client=boringssl -server=cloudflare-go -testcase=dc runs just the dc test with the boringssl client and cloudflare-go server
-    $ runner -client=boringssl -server=cloudflare-go -alltestcases runs all test cases with the boringssl client and cloudflare-go server
+    $ runner --client=boringssl --server=cloudflare-go --build builds boringssl as a client and cloudflare-go as a server
+    $ runner --client=boringssl --server=cloudflare-go --testcase=dc runs just the dc test with the boringssl client and cloudflare-go server
+    $ runner --client=boringssl --server=cloudflare-go --alltestcases runs all test cases with the boringssl client and cloudflare-go server
 `
 
 var testInputsDir = path.Join("generated", "test-inputs")
@@ -26,6 +27,7 @@ func main() {
 		clientName       = flag.String("client", "", "")
 		serverName       = flag.String("server", "", "")
 		testCaseName     = flag.String("testcase", "", "")
+		buildEndpoints   = flag.Bool("build", false, "")
 		runAllTests      = flag.Bool("alltestcases", false, "")
 		listClientsForCI = flag.Bool("ci-list-clients", false, "")
 		listServersForCI = flag.Bool("ci-list-servers", false, "")
@@ -56,7 +58,7 @@ func main() {
 			}
 		}
 		fmt.Printf("]\n")
-	} else if *clientName != "" && *serverName != "" && (*runAllTests || *testCaseName != "") {
+	} else if *clientName != "" && *serverName != "" && *buildEndpoints {
 		var client, server endpoint
 		for _, e := range endpoints {
 			if e.name == *clientName {
@@ -92,13 +94,29 @@ func main() {
 		if err != nil {
 			log.Fatalf("docker-compose build: %s", err)
 		}
+	} else if *clientName != "" && *serverName != "" && (*runAllTests || *testCaseName != "") {
+		var client, server endpoint
+		for _, e := range endpoints {
+			if e.name == *clientName {
+				if !e.client {
+					log.Fatalf("%s cannot be run as a client.", *clientName)
+				}
+				client = e
+			}
+			if e.name == *serverName {
+				if !e.server {
+					log.Fatalf("%s cannot be run as a server.", *serverName)
+				}
+				server = e
+			}
+		}
 		if *runAllTests {
 			for _, t := range testCases {
-				err = t.setup()
+				err := t.setup()
 				if err != nil {
 					log.Fatal("Error generating test inputs.")
 				}
-				err = t.run(client, server, false)
+				err = t.run(client, server, true)
 				if err != nil {
 					log.Fatal(err.Error())
 				}
@@ -109,7 +127,7 @@ func main() {
 				log.Printf("Success\n")
 			}
 		} else if t, ok := testCases[*testCaseName]; ok {
-			err = t.setup()
+			err := t.setup()
 			if err != nil {
 				log.Fatal("Error generating test inputs.")
 			}

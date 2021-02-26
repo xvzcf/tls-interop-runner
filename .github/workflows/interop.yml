@@ -55,7 +55,8 @@ jobs:
         working-directory: go/src/github.com/${{ github.repository }}
       - name: Run tests
         run: |
-          ( ./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --alltestcases || true) | tee output.txt
+          ./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --build
+          ./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --alltestcases
           mkdir -p logs/${{ matrix.server }}_${{ matrix.client }}
           mv output.txt logs/${{ matrix.server }}_${{ matrix.client }}/
         working-directory: go/src/github.com/${{ github.repository }}
