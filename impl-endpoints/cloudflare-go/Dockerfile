@@ -5,10 +5,10 @@ FROM golang:latest AS builder
 
 RUN apt-get update && \
     apt-get install git
-
-RUN rm -fr /cf-go && git clone --depth 1 --branch cf https://github.com/cloudflare/go /cf-go
+RUN rm -fr /cf-go && git clone --branch cf https://github.com/cloudflare/go /cf-go
 
 WORKDIR /cf-go/src
+RUN git checkout 2a17ea31d28264fccfec4e59dc2ac733b6c73dec
 RUN ./make.bash
 
 FROM ubuntu:20.04

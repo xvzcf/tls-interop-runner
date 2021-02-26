@@ -18,19 +18,19 @@ jobs:
       - name: Build test runner
         run: make runner
         working-directory: go/src/github.com/${{ github.repository }}
-      - name: Determine servers
-        id: set-servers
-        run: |
-          SERVERS=$(./bin/runner --ci-list-servers)
-          echo $SERVERS
-          echo "::set-output name=servers::$SERVERS"
-        working-directory: go/src/github.com/${{ github.repository }}
       - name: Determine clients
         id: set-clients
         run: |
           CLIENTS=$(./bin/runner --ci-list-clients)
           echo $CLIENTS
           echo "::set-output name=clients::$CLIENTS"
+        working-directory: go/src/github.com/${{ github.repository }}
+      - name: Determine servers
+        id: set-servers
+        run: |
+          SERVERS=$(./bin/runner --ci-list-servers)
+          echo $SERVERS
+          echo "::set-output name=servers::$SERVERS"
         working-directory: go/src/github.com/${{ github.repository }}
   tests:
     needs: [ config ]

@@ -5,7 +5,10 @@ FROM golang:latest AS builder
 
 RUN apt-get update && \
     apt-get install -y git cmake ninja-build perl && \
-    git clone --depth 1 --branch dc-update-09 https://github.com/xvzcf/boringssl /boringssl
+    git clone --branch dc-spec-update https://github.com/xvzcf/boringssl /boringssl
+
+WORKDIR /boringssl
+RUN git checkout 66929b751f97b3ce2868523bcdde549ea8324b56
 
 RUN mkdir /boringssl/build
 WORKDIR /boringssl/build

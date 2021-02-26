@@ -76,15 +76,15 @@ func main() {
 		cmd := exec.Command("docker-compose", "build")
 		env := os.Environ()
 		if server.regression {
-			env = append(env, "SERVER_SRC=./regression-endpoints")
+			env = append(env, "SERVER_SRC=regression-endpoints")
 		} else {
-			env = append(env, "SERVER_SRC=./impl-endpoints")
+			env = append(env, "SERVER_SRC=impl-endpoints")
 		}
 		env = append(env, fmt.Sprintf("SERVER=%s", server.name))
 		if client.regression {
-			env = append(env, "CLIENT_SRC=./regression-endpoints")
+			env = append(env, "CLIENT_SRC=regression-endpoints")
 		} else {
-			env = append(env, "CLIENT_SRC=./impl-endpoints")
+			env = append(env, "CLIENT_SRC=impl-endpoints")
 		}
 		env = append(env, fmt.Sprintf("CLIENT=%s", client.name))
 		cmd.Env = env

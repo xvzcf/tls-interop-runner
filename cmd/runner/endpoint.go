@@ -21,7 +21,7 @@ var endpoints = []endpoint{
 		server:     true,
 	},
 	{
-		name:       "tlsfuzzer",
+		name:       "tls-attacker",
 		regression: true,
 		client:     true,
 		server:     false,
