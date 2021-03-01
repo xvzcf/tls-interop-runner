@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -35,38 +36,32 @@ func main() {
 	if *help {
 		fmt.Print(usage)
 	} else if *listInteropClients {
-		fmt.Printf("[")
-		for i, e := range endpoints {
+		var clientNames []string
+		for _, e := range endpoints {
 			if e.client && !e.regression {
-				if i > 0 {
-					fmt.Printf(",")
-				}
-				fmt.Printf("\"%s\"", e.name)
+				clientNames = append(clientNames, e.name)
 			}
 		}
-		fmt.Printf("]\n")
+		jsonOut, _ := json.Marshal(clientNames)
+		fmt.Print(string(jsonOut))
 	} else if *listInteropServers {
-		fmt.Printf("[")
-		for i, e := range endpoints {
-			if e.server && !e.regression {
-				if i > 0 {
-					fmt.Printf(",")
-				}
-				fmt.Printf("\"%s\"", e.name)
+		var serverNames []string
+		for _, e := range endpoints {
+			if e.client && !e.regression {
+				serverNames = append(serverNames, e.name)
 			}
 		}
-		fmt.Printf("]\n")
+		jsonOut, _ := json.Marshal(serverNames)
+		fmt.Print(string(jsonOut))
 	} else if *listInteropEndpoints {
-		fmt.Printf("[")
-		for i, e := range endpoints {
-			if !e.regression {
-				if i > 0 {
-					fmt.Printf(",")
-				}
-				fmt.Printf("\"%s\"", e.name)
+		var endpointNames []string
+		for _, e := range endpoints {
+			if e.client && !e.regression {
+				endpointNames = append(endpointNames, e.name)
 			}
 		}
-		fmt.Printf("]\n")
+		jsonOut, _ := json.Marshal(endpointNames)
+		fmt.Print(string(jsonOut))
 	} else if *buildNetwork {
 		cmd := exec.Command("docker", "build", "network", "--tag", "tls-interop-network")
 		err := cmd.Run()
@@ -75,19 +70,16 @@ func main() {
 		}
 	} else if *clientName != "" && *serverName != "" && *buildEndpoints {
 		var client, server endpoint
-		for _, e := range endpoints {
-			if e.name == *clientName {
-				if !e.client {
-					log.Fatalf("%s cannot be run as a client.", *clientName)
-				}
-				client = e
-			}
-			if e.name == *serverName {
-				if !e.server {
-					log.Fatalf("%s cannot be run as a server.", *serverName)
-				}
-				server = e
-			}
+		var found bool
+		if client, found = endpoints[*clientName]; !found {
+			log.Fatalf("%s not found.", *clientName)
+		} else if !client.client {
+			log.Fatalf("%s cannot be run as a client.", *clientName)
+		}
+		if server, found = endpoints[*serverName]; !found {
+			log.Fatalf("%s not found.", *serverName)
+		} else if !server.server {
+			log.Fatalf("%s cannot be run as a client.", *serverName)
 		}
 
 		log.Printf("Building %s.\n", client.name)
@@ -120,20 +112,18 @@ func main() {
 		}
 	} else if *clientName != "" && *serverName != "" && (*runAllTests || *testCaseName != "") {
 		var client, server endpoint
-		for _, e := range endpoints {
-			if e.name == *clientName {
-				if !e.client {
-					log.Fatalf("%s cannot be run as a client.", *clientName)
-				}
-				client = e
-			}
-			if e.name == *serverName {
-				if !e.server {
-					log.Fatalf("%s cannot be run as a server.", *serverName)
-				}
-				server = e
-			}
+		var found bool
+		if client, found = endpoints[*clientName]; !found {
+			log.Fatalf("%s not found.", *clientName)
+		} else if !client.client {
+			log.Fatalf("%s cannot be run as a client.", *clientName)
 		}
+		if server, found = endpoints[*serverName]; !found {
+			log.Fatalf("%s not found.", *serverName)
+		} else if !server.server {
+			log.Fatalf("%s cannot be run as a client.", *serverName)
+		}
+
 		if *runAllTests {
 			for _, t := range testCases {
 				err := t.setup()

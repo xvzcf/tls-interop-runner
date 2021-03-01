@@ -7,8 +7,6 @@ set -e
 
 sh /setup-routes.sh
 
-echo "Using commit:" "$(cat commit.txt)"
-
 if [ "$ROLE" = "client" ]; then
     # TODO
     exit 64

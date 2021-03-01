@@ -51,9 +51,8 @@ type testError struct {
 func (e *testError) Error() string {
 	if e.unsupported {
 		return fmt.Sprintf("Unsupported,%s(): %s", e.funcName, e.err)
-	} else {
-		return fmt.Sprintf("Failure,%s(): %s", e.funcName, e.err)
 	}
+	return fmt.Sprintf("Failure,%s(): %s", e.funcName, e.err)
 }
 
 var testInputsDir = filepath.Join("generated", "test-inputs")
