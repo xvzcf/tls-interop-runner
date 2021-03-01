@@ -5,7 +5,7 @@ jobs:
   config:
     runs-on: ubuntu-latest
     outputs:
-      endpoints: ${{ steps.set-clients.outputs.endpoints }}
+      endpoints: ${{ steps.set-endpoints.outputs.endpoints }}
       servers: ${{ steps.set-servers.outputs.servers }}
       clients: ${{ steps.set-clients.outputs.clients }}
     steps:
@@ -20,7 +20,7 @@ jobs:
         run: make runner
         working-directory: go/src/github.com/${{ github.repository }}
       - name: List interop endpoints
-        id: set-interop-endpoints
+        id: set-endpoints
         run: |
           ENDPOINTS=$(./bin/runner --list-interop-endpoints)
           echo $ENDPOINTS
