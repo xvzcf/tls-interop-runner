@@ -52,13 +52,13 @@ jobs:
         run: docker build network --tag tls-interop-network
       - name: Save Docker image
         run: |
-          docker save tls-interop-network | gzip --best > network.tar.gz
-          du -sh network.tar.gz
+          docker save tls-interop-network | gzip --best > tls-interop-network.tar.gz
+          du -sh tls-interop-network.tar.gz
       - name: Upload result
         uses: actions/upload-artifact@v2
         with:
-          name: network
-          path: network.tar.gz
+          name: tls-interop-network
+          path: tls-interop-network.tar.gz
           if-no-files-found: error
 
   build-save-endpoints:
@@ -73,16 +73,16 @@ jobs:
         with:
           fetch-depth: 1
       - name: Run docker build
-        run: docker build impl-endpoints/${{ matrix.endpoint }} --tag tls-interop-${{ matrix.endpoint }}
+        run: docker build impl-endpoints/${{ matrix.endpoint }} --tag tls-endpoint-${{ matrix.endpoint }}
       - name: Save Docker image
         run: |
-          docker save tls-interop-${{ matrix.endpoint }} | gzip --best > ${{ matrix.endpoint }}.tar.gz
-          du -sh ${{ matrix.endpoint }}.tar.gz
+          docker save tls-endpoint-${{ matrix.endpoint }} | gzip --best > tls-endpoint-${{ matrix.endpoint }}.tar.gz
+          du -sh tls-endpoint-${{ matrix.endpoint }}.tar.gz
       - name: Upload result
         uses: actions/upload-artifact@v2
         with:
-          name: endpoint-${{ matrix.endpoint }}
-          path: ${{ matrix.endpoint }}.tar.gz
+          name: tls-endpoint-${{ matrix.endpoint }}
+          path: tls-endpoint-${{ matrix.endpoint }}.tar.gz
           if-no-files-found: error
 
   tests:
@@ -113,28 +113,28 @@ jobs:
       - name: Download network image
         uses: actions/download-artifact@v2
         with:
-          name: network
+          name: tls-interop-network
       - name: Download ${{ matrix.client }} Docker endpoint
         uses: actions/download-artifact@v2
         with:
-          name: endpoint-${{ matrix.client }}
+          name: tls-endpoint-${{ matrix.client }}
       - name: Download ${{ matrix.server }} Docker endpoint
         if: ${{ matrix.server != matrix.client }}
         uses: actions/download-artifact@v2
         with:
-          name: endpoint-${{ matrix.server }}
+          name: tls-endpoint-${{ matrix.server }}
       - name: Load docker images
         run: |
-          docker load --input network.tar.gz
-          docker load --input ${{ matrix.client }}.tar.gz
-          docker load --input ${{ matrix.server }}.tar.gz
+          docker load --input tls-interop-network.tar.gz
+          docker load --input tls-endpoint-${{ matrix.client }}.tar.gz
+          docker load --input tls-endpoint-${{ matrix.server }}.tar.gz
       - run: docker image ls
       - name: Build test runner
         run: make runner
         working-directory: go/src/github.com/${{ github.repository }}
       - name: Run tests
         run: |
-          ./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --alltestcases
-          mkdir -p logs/${{ matrix.server }}_${{ matrix.client }}
-          mv output.txt logs/${{ matrix.server }}_${{ matrix.client }}/
+          (./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --alltestcases || true)
+          mkdir -p logs/${{ matrix.client }}/${{ matrix.server }}
+          mv generated/test-outputs/* logs/${{ matrix.client }}/${{ matrix.client }}/
         working-directory: go/src/github.com/${{ github.repository }}

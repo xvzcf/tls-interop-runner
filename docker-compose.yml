@@ -11,7 +11,7 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - ./generated/test-outputs:/test-outputs
+      - ${TESTOUTPUTS_DIR}:/test-outputs
     cap_add:
       - NET_ADMIN
     expose:
@@ -25,7 +25,7 @@ services:
         ipv6_address: fd00:cafe:cafe:100::2
 
   server:
-    image: tls-interop-${SERVER}
+    image: tls-endpoint-${SERVER}
     container_name: server
     hostname: server
     stdin_open: true
@@ -33,7 +33,7 @@ services:
     volumes:
       - ./generated/test-inputs:/test-inputs:ro
       - ./network/endpoint-route-setup.sh:/setup-routes.sh:ro
-      - ./generated/test-outputs:/test-outputs
+      - ${TESTOUTPUTS_DIR}:/test-outputs
     cap_add:
       - NET_ADMIN
     ulimits:
@@ -51,7 +51,7 @@ services:
       - "client:193.167.0.100"
 
   client:
-    image: tls-interop-${CLIENT}
+    image: tls-endpoint-${CLIENT}
     container_name: client
     hostname: client
     stdin_open: true
@@ -59,7 +59,7 @@ services:
     volumes:
       - ./generated/test-inputs:/test-inputs:ro
       - ./network/endpoint-route-setup.sh:/setup-routes.sh:ro
-      - ./generated/test-outputs:/test-outputs
+      - ${TESTOUTPUTS_DIR}:/test-outputs
     cap_add:
       - NET_ADMIN
     ulimits:

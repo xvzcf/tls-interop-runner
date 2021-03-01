@@ -1,13 +1,14 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -55,14 +56,20 @@ func (e *testError) Error() string {
 	}
 }
 
+var testInputsDir = filepath.Join("generated", "test-inputs")
+var testOutputsBaseDir = filepath.Join("generated", "test-outputs")
+
 type testCaseDC struct {
-	name    string
-	timeout time.Duration
+	name      string
+	timeout   time.Duration
+	outputDir string
 }
 
-func (t testCaseDC) setup() error {
+func (t *testCaseDC) setup() error {
 	os.MkdirAll(testInputsDir, os.ModePerm)
-	os.MkdirAll(testOutputsDir, os.ModePerm)
+	t.outputDir = filepath.Join(testOutputsBaseDir, t.name)
+	os.RemoveAll(t.outputDir)
+	os.MkdirAll(t.outputDir, os.ModePerm)
 
 	var inputParams strings.Builder
 
@@ -74,8 +81,8 @@ func (t testCaseDC) setup() error {
 			ValidFor:           365 * 25 * time.Hour,
 			SignatureAlgorithm: rootSignatureAlgorithm,
 		},
-		path.Join(testInputsDir, "root.crt"),
-		path.Join(testInputsDir, "root.key"),
+		filepath.Join(testInputsDir, "root.crt"),
+		filepath.Join(testInputsDir, "root.key"),
 	)
 	if err != nil {
 		return err
@@ -91,10 +98,10 @@ func (t testCaseDC) setup() error {
 			SignatureAlgorithm: intermediateSignatureAlgorithm,
 			ForDC:              true,
 		},
-		path.Join(testInputsDir, "root.crt"),
-		path.Join(testInputsDir, "root.key"),
-		path.Join(testInputsDir, "example.crt"),
-		path.Join(testInputsDir, "example.key"),
+		filepath.Join(testInputsDir, "root.crt"),
+		filepath.Join(testInputsDir, "root.key"),
+		filepath.Join(testInputsDir, "example.crt"),
+		filepath.Join(testInputsDir, "example.key"),
 	)
 	if err != nil {
 		return err
@@ -109,9 +116,9 @@ func (t testCaseDC) setup() error {
 			SignatureAlgorithm: dcAlgorithm,
 		},
 		&utils.Config{},
-		path.Join(testInputsDir, "example.crt"),
-		path.Join(testInputsDir, "example.key"),
-		path.Join(testInputsDir, "dc.txt"),
+		filepath.Join(testInputsDir, "example.crt"),
+		filepath.Join(testInputsDir, "example.key"),
+		filepath.Join(testInputsDir, "dc.txt"),
 	)
 	if err != nil {
 		return err
@@ -119,7 +126,7 @@ func (t testCaseDC) setup() error {
 	inputParams.WriteString(fmt.Sprintf("Delegated credential algorithm: 0x%X\n", intermediateSignatureAlgorithm))
 	inputParams.WriteString(fmt.Sprintf("DC valid for: %v\n", dcValidFor))
 
-	inputParamsLog, err := os.Create(path.Join(testOutputsDir, "input-params.txt"))
+	inputParamsLog, err := os.Create(filepath.Join(t.outputDir, "input-params.txt"))
 	if err != nil {
 		return err
 	}
@@ -133,22 +140,16 @@ func (t testCaseDC) setup() error {
 	return nil
 }
 
-func (t testCaseDC) run(client endpoint, server endpoint, verbose bool) error {
+func (t *testCaseDC) run(client endpoint, server endpoint, verbose bool) error {
+	pc, _, _, _ := runtime.Caller(0)
+	fn := runtime.FuncForPC(pc)
+
 	cmd := exec.Command("docker-compose", "up", "-V", "--abort-on-container-exit")
 	env := os.Environ()
-	if server.regression {
-		env = append(env, "SERVER_SRC=./regression-endpoints")
-	} else {
-		env = append(env, "SERVER_SRC=./impl-endpoints")
-	}
 	env = append(env, fmt.Sprintf("SERVER=%s", server.name))
-	if client.regression {
-		env = append(env, "CLIENT_SRC=./regression-endpoints")
-	} else {
-		env = append(env, "CLIENT_SRC=./impl-endpoints")
-	}
 	env = append(env, fmt.Sprintf("CLIENT=%s", client.name))
 	env = append(env, fmt.Sprintf("TESTCASE=%s", t.name))
+	env = append(env, fmt.Sprintf("TESTOUTPUTS_DIR=.%s%s", string(filepath.Separator), t.outputDir))
 	cmd.Env = env
 
 	var cmdOut bytes.Buffer
@@ -157,53 +158,54 @@ func (t testCaseDC) run(client endpoint, server endpoint, verbose bool) error {
 
 	err := cmd.Start()
 	if err != nil {
-		print(cmdOut.String())
-		return &testError{err: fmt.Sprintf("docker-compose up start(): %s", err), funcName: "run"}
+		return &testError{err: fmt.Sprintf("docker-compose up start(): %s", err), funcName: fn.Name()}
 	}
 	err = waitWithTimeout(cmd, t.timeout)
 	if err != nil {
-		print(cmdOut.String())
 		if strings.Contains(err.Error(), "exit status 64") {
-			return &testError{err: fmt.Sprintf("docker-compose up: %s", err), funcName: "run", unsupported: true}
+			return &testError{err: fmt.Sprintf("docker-compose up: %s", err), funcName: fn.Name(), unsupported: true}
 		}
-		return &testError{err: fmt.Sprintf("docker-compose up: %s", err), funcName: "run"}
+		return &testError{err: fmt.Sprintf("docker-compose up: %s", err), funcName: fn.Name()}
 	}
 	if verbose {
-		print(cmdOut.String())
+		log.Println(cmdOut.String())
 	}
-	runLog, err := os.Create(path.Join(testOutputsDir, "run.txt"))
+	runLog, err := os.Create(filepath.Join(t.outputDir, "run.txt"))
 	if err != nil {
-		return &testError{err: fmt.Sprintf("os.Create failed: %s", err), funcName: "run"}
+		return &testError{err: fmt.Sprintf("os.Create failed: %s", err), funcName: fn.Name()}
 	}
-	defer runLog.Close()
-	w := bufio.NewWriter(runLog)
-	_, err = cmdOut.WriteTo(w)
+	_, err = runLog.WriteString(cmdOut.String())
 	if err != nil {
-		return &testError{err: fmt.Sprintf("WriteTo failed: %s", err), funcName: "run"}
+		return &testError{err: fmt.Sprintf("WriteString failed: %s", err), funcName: fn.Name()}
 	}
 	return nil
 }
 
-func (t testCaseDC) verify() error {
+func (t *testCaseDC) verify() error {
+	pc, _, _, _ := runtime.Caller(0)
+	fn := runtime.FuncForPC(pc)
+
 	err := pcap.FindTshark()
 	if err != nil {
-		return &testError{err: fmt.Sprintf("tshark not found: %s", err), funcName: "verify"}
+		return &testError{err: fmt.Sprintf("tshark not found: %s", err), funcName: fn.Name()}
 	}
 
-	pcapPath := path.Join("generated", "test-outputs", "client_node_trace.pcap")
-	keylogPath := path.Join("generated", "test-outputs", "client_keylog")
+	pcapPath := filepath.Join(t.outputDir, "client_node_trace.pcap")
+	keylogPath := filepath.Join(t.outputDir, "client_keylog")
 	transcript, err := pcap.Parse(pcapPath, keylogPath)
 	if err != nil {
-		return &testError{err: fmt.Sprintf("could not parse pcap: %s", err), funcName: "verify"}
+		return &testError{err: fmt.Sprintf("could not parse pcap: %s", err), funcName: fn.Name()}
 	}
 
 	err = pcap.Validate(transcript, t.name)
 	if err != nil {
-		return &testError{err: fmt.Sprintf("could not validate pcap: %s", err), funcName: "verify"}
+		return &testError{err: fmt.Sprintf("could not validate pcap: %s", err), funcName: fn.Name()}
 	}
 	return nil
 }
 
 var testCases = map[string]testCase{
-	"dc": testCaseDC{name: "dc", timeout: 100 * time.Second},
+	"dc": &testCaseDC{
+		name:    "dc",
+		timeout: 100 * time.Second},
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
-	"path"
 )
 
 const usage = `Usage:
@@ -17,9 +16,6 @@ const usage = `Usage:
     $ runner --client=boringssl --server=cloudflare-go --testcase=dc runs just the dc test with the boringssl client and cloudflare-go server
     $ runner --client=boringssl --server=cloudflare-go --alltestcases runs all test cases with the boringssl client and cloudflare-go server
 `
-
-var testInputsDir = path.Join("generated", "test-inputs")
-var testOutputsDir = path.Join("generated", "test-outputs")
 
 func main() {
 	log.SetFlags(0)
@@ -103,7 +99,7 @@ func main() {
 		}
 		cmd := exec.Command("docker", "build",
 			fmt.Sprintf("%s/%s", location, client.name),
-			"--tag", fmt.Sprintf("tls-interop-%s", client.name))
+			"--tag", fmt.Sprintf("tls-endpoint-%s", client.name))
 		err := cmd.Run()
 		if err != nil {
 			log.Fatalf("docker build: %s", err)
@@ -117,7 +113,7 @@ func main() {
 		}
 		cmd = exec.Command("docker", "build",
 			fmt.Sprintf("%s/%s", location, server.name),
-			"--tag", fmt.Sprintf("tls-interop-%s", server.name))
+			"--tag", fmt.Sprintf("tls-endpoint-%s", server.name))
 		err = cmd.Run()
 		if err != nil {
 			log.Fatalf("docker build: %s", err)
@@ -144,15 +140,18 @@ func main() {
 				if err != nil {
 					log.Fatal("Error generating test inputs.")
 				}
-				err = t.run(client, server, true)
+				fmt.Printf("client=%s,server=%s,", client.name, server.name)
+				err = t.run(client, server, false)
 				if err != nil {
-					log.Fatal(err.Error())
+					log.Println(err)
+					continue
 				}
 				err = t.verify()
 				if err != nil {
-					log.Fatal(err.Error())
+					log.Println(err)
+					continue
 				}
-				log.Printf("Success\n")
+				log.Println("Success")
 			}
 		} else if t, ok := testCases[*testCaseName]; ok {
 			err := t.setup()
@@ -167,7 +166,7 @@ func main() {
 			if err != nil {
 				log.Fatal(err.Error())
 			}
-			log.Printf("Success\n")
+			log.Println("Success")
 		} else {
 			log.Fatalf("Testcase %s not found.\n", *testCaseName)
 		}
