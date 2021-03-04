@@ -4,8 +4,9 @@
 FROM golang:latest AS builder
 
 RUN apt-get update && \
-    apt-get install git && \
-    git clone --depth 1 --branch cf-delegated-credentials https://github.com/cloudflare/go /cf-go
+    apt-get install git
+
+RUN rm -fr /cf-go && git clone --depth 1 --branch cf https://github.com/cloudflare/go /cf-go
 
 WORKDIR /cf-go/src
 RUN ./make.bash
@@ -19,7 +20,7 @@ COPY --from=builder /cf-go /cf-go
 
 COPY runner.go config.go /
 
-RUN /cf-go/bin/go build -o /usr/bin/runner
+RUN /cf-go/bin/go build -o /usr/bin/runner runner.go config.go
 
 COPY run_endpoint.sh /
 RUN chmod +x /run_endpoint.sh
