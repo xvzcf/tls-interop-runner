@@ -35,7 +35,7 @@ func (t *dcClientHandler) ConnectionHandler(conn *tls.Conn, err error) error {
 	if err != nil {
 		return fmt.Errorf("Unexpected error: \"%s\"", err)
 	}
-	if conn.ConnectionState().VerifiedDC == nil {
+	if !conn.ConnectionState().VerifiedDC {
 		return errors.New("Failed to verify a delegated credential")
 	}
 	return nil
