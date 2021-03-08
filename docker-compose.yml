@@ -11,7 +11,7 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - ${TESTOUTPUTS_DIR}:/test-outputs
+      - ./generated/test-outputs:/test-outputs
     cap_add:
       - NET_ADMIN
     expose:
@@ -33,7 +33,7 @@ services:
     volumes:
       - ./generated/test-inputs:/test-inputs:ro
       - ./network/endpoint-route-setup.sh:/setup-routes.sh:ro
-      - ${TESTOUTPUTS_DIR}:/test-outputs
+      - ./generated/test-outputs:/test-outputs
     cap_add:
       - NET_ADMIN
     ulimits:
@@ -59,7 +59,7 @@ services:
     volumes:
       - ./generated/test-inputs:/test-inputs:ro
       - ./network/endpoint-route-setup.sh:/setup-routes.sh:ro
-      - ${TESTOUTPUTS_DIR}:/test-outputs
+      - ./generated/test-outputs:/test-outputs
     cap_add:
       - NET_ADMIN
     ulimits:

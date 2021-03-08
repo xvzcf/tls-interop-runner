@@ -55,9 +55,6 @@ func (e *testError) Error() string {
 	return fmt.Sprintf("Failure,%s(): %s", e.funcName, e.err)
 }
 
-var testInputsDir = filepath.Join("generated", "test-inputs")
-var testOutputsBaseDir = filepath.Join("generated", "test-outputs")
-
 type testCaseDC struct {
 	name      string
 	timeout   time.Duration
@@ -65,15 +62,23 @@ type testCaseDC struct {
 }
 
 func (t *testCaseDC) setup() error {
-	os.MkdirAll(testInputsDir, os.ModePerm)
-	t.outputDir = filepath.Join(testOutputsBaseDir, t.name)
-	os.RemoveAll(t.outputDir)
-	os.MkdirAll(t.outputDir, os.ModePerm)
+	err := os.MkdirAll(testInputsDir, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	err = os.RemoveAll(testOutputsDir)
+	if err != nil {
+		return err
+	}
+	err = os.MkdirAll(testOutputsDir, os.ModePerm)
+	if err != nil {
+		return err
+	}
 
 	var inputParams strings.Builder
 
 	rootSignatureAlgorithm := utils.SignatureECDSAWithP521AndSHA512
-	err := utils.MakeRootCertificate(
+	err = utils.MakeRootCertificate(
 		&utils.Config{
 			Hostnames:          []string{"root.com"},
 			ValidFrom:          time.Now(),
@@ -125,7 +130,7 @@ func (t *testCaseDC) setup() error {
 	inputParams.WriteString(fmt.Sprintf("Delegated credential algorithm: 0x%X\n", intermediateSignatureAlgorithm))
 	inputParams.WriteString(fmt.Sprintf("DC valid for: %v\n", dcValidFor))
 
-	inputParamsLog, err := os.Create(filepath.Join(t.outputDir, "input-params.txt"))
+	inputParamsLog, err := os.Create(filepath.Join(testOutputsDir, "input-params.txt"))
 	if err != nil {
 		return err
 	}
@@ -148,7 +153,7 @@ func (t *testCaseDC) run(client endpoint, server endpoint, verbose bool) error {
 	env = append(env, fmt.Sprintf("SERVER=%s", server.name))
 	env = append(env, fmt.Sprintf("CLIENT=%s", client.name))
 	env = append(env, fmt.Sprintf("TESTCASE=%s", t.name))
-	env = append(env, fmt.Sprintf("TESTOUTPUTS_DIR=.%s%s", string(filepath.Separator), t.outputDir))
+	env = append(env, fmt.Sprintf("TESTOUTPUTS_DIR=.%s%s", string(filepath.Separator), testOutputsDir))
 	cmd.Env = env
 
 	var cmdOut bytes.Buffer
@@ -169,7 +174,7 @@ func (t *testCaseDC) run(client endpoint, server endpoint, verbose bool) error {
 	if verbose {
 		log.Println(cmdOut.String())
 	}
-	runLog, err := os.Create(filepath.Join(t.outputDir, "run.txt"))
+	runLog, err := os.Create(filepath.Join(testOutputsDir, "run.txt"))
 	if err != nil {
 		return &testError{err: fmt.Sprintf("os.Create failed: %s", err), funcName: fn.Name()}
 	}
@@ -189,8 +194,8 @@ func (t *testCaseDC) verify() error {
 		return &testError{err: fmt.Sprintf("tshark not found: %s", err), funcName: fn.Name()}
 	}
 
-	pcapPath := filepath.Join(t.outputDir, "client_node_trace.pcap")
-	keylogPath := filepath.Join(t.outputDir, "client_keylog")
+	pcapPath := filepath.Join(testOutputsDir, "client_node_trace.pcap")
+	keylogPath := filepath.Join(testOutputsDir, "client_keylog")
 	transcript, err := pcap.Parse(pcapPath, keylogPath)
 	if err != nil {
 		return &testError{err: fmt.Sprintf("could not parse pcap: %s", err), funcName: fn.Name()}

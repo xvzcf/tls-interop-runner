@@ -5,7 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
 )
 
 const usage = `Usage:
@@ -17,6 +19,9 @@ const usage = `Usage:
     $ runner --client=boringssl --server=cloudflare-go --testcase=dc runs just the dc test with the boringssl client and cloudflare-go server
     $ runner --client=boringssl --server=cloudflare-go --alltestcases runs all test cases with the boringssl client and cloudflare-go server
 `
+
+var testInputsDir = filepath.Join("generated", "test-inputs")
+var testOutputsDir = filepath.Join("generated", "test-outputs")
 
 func main() {
 	log.SetFlags(0)
@@ -68,7 +73,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("docker network build: %s", err)
 		}
-	} else if *clientName != "" && *serverName != "" && *buildEndpoints {
+	} else if *clientName != "" && *serverName != "" && (*buildEndpoints || *runAllTests || *testCaseName != "") {
 		var client, server endpoint
 		var found bool
 		if client, found = endpoints[*clientName]; !found {
@@ -82,50 +87,38 @@ func main() {
 			log.Fatalf("%s cannot be run as a client.", *serverName)
 		}
 
-		log.Printf("Building %s.\n", client.name)
-		var location string
-		if client.regression {
-			location = "regression-endpoints"
-		} else {
-			location = "impl-endpoints"
-		}
-		cmd := exec.Command("docker", "build",
-			fmt.Sprintf("%s/%s", location, client.name),
-			"--tag", fmt.Sprintf("tls-endpoint-%s", client.name))
-		err := cmd.Run()
-		if err != nil {
-			log.Fatalf("docker build: %s", err)
-		}
+		if *buildEndpoints {
+			log.Printf("Building %s.\n", client.name)
+			var location string
+			if client.regression {
+				location = "regression-endpoints"
+			} else {
+				location = "impl-endpoints"
+			}
+			cmd := exec.Command("docker", "build",
+				fmt.Sprintf("%s/%s", location, client.name),
+				"--tag", fmt.Sprintf("tls-endpoint-%s", client.name))
+			err := cmd.Run()
+			if err != nil {
+				log.Fatalf("docker build: %s", err)
+			}
 
-		log.Printf("Building %s.\n", server.name)
-		if server.regression {
-			location = "regression-endpoints"
-		} else {
-			location = "impl-endpoints"
+			log.Printf("Building %s.\n", server.name)
+			if server.regression {
+				location = "regression-endpoints"
+			} else {
+				location = "impl-endpoints"
+			}
+			cmd = exec.Command("docker", "build",
+				fmt.Sprintf("%s/%s", location, server.name),
+				"--tag", fmt.Sprintf("tls-endpoint-%s", server.name))
+			err = cmd.Run()
+			if err != nil {
+				log.Fatalf("docker build: %s", err)
+			}
 		}
-		cmd = exec.Command("docker", "build",
-			fmt.Sprintf("%s/%s", location, server.name),
-			"--tag", fmt.Sprintf("tls-endpoint-%s", server.name))
-		err = cmd.Run()
-		if err != nil {
-			log.Fatalf("docker build: %s", err)
-		}
-	} else if *clientName != "" && *serverName != "" && (*runAllTests || *testCaseName != "") {
-		var client, server endpoint
-		var found bool
-		if client, found = endpoints[*clientName]; !found {
-			log.Fatalf("%s not found.", *clientName)
-		} else if !client.client {
-			log.Fatalf("%s cannot be run as a client.", *clientName)
-		}
-		if server, found = endpoints[*serverName]; !found {
-			log.Fatalf("%s not found.", *serverName)
-		} else if !server.server {
-			log.Fatalf("%s cannot be run as a client.", *serverName)
-		}
-
 		if *runAllTests {
-			for _, t := range testCases {
+			for name, t := range testCases {
 				err := t.setup()
 				if err != nil {
 					log.Fatal("Error generating test inputs.")
@@ -140,6 +133,15 @@ func main() {
 				if err != nil {
 					log.Println(err)
 					continue
+				}
+				destDir := filepath.Join("generated", name)
+				err = os.RemoveAll(destDir)
+				if err != nil {
+					log.Fatal(err)
+				}
+				err = os.Rename(testOutputsDir, destDir)
+				if err != nil {
+					log.Fatal(err)
 				}
 				log.Println("Success")
 			}
