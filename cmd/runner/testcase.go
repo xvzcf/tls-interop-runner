@@ -148,12 +148,22 @@ func (t *testCaseDC) run(client endpoint, server endpoint, verbose bool) error {
 	pc, _, _, _ := runtime.Caller(0)
 	fn := runtime.FuncForPC(pc)
 
-	cmd := exec.Command("docker-compose", "up", "-V", "--abort-on-container-exit")
+	cmd := exec.Command("docker-compose", "up",
+		"-V",
+		"--no-build",
+		"--abort-on-container-exit")
+
 	env := os.Environ()
 	env = append(env, fmt.Sprintf("SERVER=%s", server.name))
 	env = append(env, fmt.Sprintf("CLIENT=%s", client.name))
 	env = append(env, fmt.Sprintf("TESTCASE=%s", t.name))
-	env = append(env, fmt.Sprintf("TESTOUTPUTS_DIR=.%s%s", string(filepath.Separator), testOutputsDir))
+
+	// SERVER_SRC and CLIENT_SRC should not be needed, since the images
+	// should be built and tagged by this point. They're just set to avoid
+	// unset variable warnings by docker-compose.
+	env = append(env, "SERVER_SRC=\"\"")
+	env = append(env, "CLIENT_SRC=\"\"")
+
 	cmd.Env = env
 
 	var cmdOut bytes.Buffer

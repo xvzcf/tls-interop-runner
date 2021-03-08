@@ -14,10 +14,9 @@ const usage = `Usage:
 
     $ runner [--help] {--client STRING} {--server STRING} {--testcase STRING|--alltestcases} [--build] [--build-network]
 
-    $ runner --build-network builds the network simulator image.
-    $ runner --client=boringssl --server=cloudflare-go --build builds boringssl as a client and cloudflare-go as a server
-    $ runner --client=boringssl --server=cloudflare-go --testcase=dc runs just the dc test with the boringssl client and cloudflare-go server
-    $ runner --client=boringssl --server=cloudflare-go --alltestcases runs all test cases with the boringssl client and cloudflare-go server
+    $ runner --client=boringssl --server=cloudflare-go --build builds boringssl as a client and cloudflare-go as a server (and all dependant services)
+    $ runner --client=boringssl --server=cloudflare-go --testcase=dc [--build] (rebuilds the endpoints, then) runs just the dc test with the boringssl client and cloudflare-go server
+    $ runner --client=boringssl --server=cloudflare-go --alltestcases [--build] (rebuilds the endpoints, then) runs just the dc test with the boringssl client and cloudflare-go server
 `
 
 var testInputsDir = filepath.Join("generated", "test-inputs")
@@ -29,8 +28,7 @@ func main() {
 		clientName           = flag.String("client", "", "")
 		serverName           = flag.String("server", "", "")
 		testCaseName         = flag.String("testcase", "", "")
-		buildEndpoints       = flag.Bool("build", false, "")
-		buildNetwork         = flag.Bool("build-network", false, "")
+		buildServices        = flag.Bool("build", false, "")
 		runAllTests          = flag.Bool("alltestcases", false, "")
 		listInteropClients   = flag.Bool("list-interop-clients", false, "")
 		listInteropServers   = flag.Bool("list-interop-servers", false, "")
@@ -67,13 +65,7 @@ func main() {
 		}
 		jsonOut, _ := json.Marshal(endpointNames)
 		fmt.Print(string(jsonOut))
-	} else if *buildNetwork {
-		cmd := exec.Command("docker", "build", "network", "--tag", "tls-interop-network")
-		err := cmd.Run()
-		if err != nil {
-			log.Fatalf("docker network build: %s", err)
-		}
-	} else if *clientName != "" && *serverName != "" && (*buildEndpoints || *runAllTests || *testCaseName != "") {
+	} else if *clientName != "" && *serverName != "" && (*buildServices || *runAllTests || *testCaseName != "") {
 		var client, server endpoint
 		var found bool
 		if client, found = endpoints[*clientName]; !found {
@@ -87,36 +79,30 @@ func main() {
 			log.Fatalf("%s cannot be run as a client.", *serverName)
 		}
 
-		if *buildEndpoints {
-			log.Printf("Building %s.\n", client.name)
-			var location string
+		if *buildServices {
+			log.Printf("Building %s client and %s server.\n", client.name, server.name)
+			cmd := exec.Command("docker-compose", "build")
+			env := os.Environ()
 			if client.regression {
-				location = "regression-endpoints"
+				env = append(env, "CLIENT_SRC=regression-endpoints")
 			} else {
-				location = "impl-endpoints"
+				env = append(env, "CLIENT_SRC=impl-endpoints")
 			}
-			cmd := exec.Command("docker", "build",
-				fmt.Sprintf("%s/%s", location, client.name),
-				"--tag", fmt.Sprintf("tls-endpoint-%s", client.name))
+			env = append(env, fmt.Sprintf("CLIENT=%s", client.name))
+			if server.regression {
+				env = append(env, "SERVER_SRC=regression-endpoints")
+			} else {
+				env = append(env, "SERVER_SRC=impl-endpoints")
+			}
+			env = append(env, fmt.Sprintf("SERVER=%s", client.name))
+			cmd.Env = env
 			err := cmd.Run()
 			if err != nil {
-				log.Fatalf("docker build: %s", err)
+				log.Fatalf("docker-compose build: %s", err)
 			}
-
-			log.Printf("Building %s.\n", server.name)
-			if server.regression {
-				location = "regression-endpoints"
-			} else {
-				location = "impl-endpoints"
-			}
-			cmd = exec.Command("docker", "build",
-				fmt.Sprintf("%s/%s", location, server.name),
-				"--tag", fmt.Sprintf("tls-endpoint-%s", server.name))
-			err = cmd.Run()
-			if err != nil {
-				log.Fatalf("docker build: %s", err)
-			}
+			log.Println("Done.")
 		}
+
 		if *runAllTests {
 			for name, t := range testCases {
 				err := t.setup()
@@ -145,22 +131,24 @@ func main() {
 				}
 				log.Println("Success")
 			}
-		} else if t, ok := testCases[*testCaseName]; ok {
-			err := t.setup()
-			if err != nil {
-				log.Fatal("Error generating test inputs.")
+		} else if *testCaseName != "" {
+			if t, ok := testCases[*testCaseName]; ok {
+				err := t.setup()
+				if err != nil {
+					log.Fatal("Error generating test inputs.")
+				}
+				err = t.run(client, server, true)
+				if err != nil {
+					log.Fatal(err.Error())
+				}
+				err = t.verify()
+				if err != nil {
+					log.Fatal(err.Error())
+				}
+				log.Println("Success")
+			} else {
+				log.Fatalf("Testcase %s not found.\n", *testCaseName)
 			}
-			err = t.run(client, server, true)
-			if err != nil {
-				log.Fatal(err.Error())
-			}
-			err = t.verify()
-			if err != nil {
-				log.Fatal(err.Error())
-			}
-			log.Println("Success")
-		} else {
-			log.Fatalf("Testcase %s not found.\n", *testCaseName)
 		}
 	} else {
 		fmt.Print(usage)
