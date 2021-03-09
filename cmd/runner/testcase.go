@@ -38,7 +38,7 @@ func waitWithTimeout(cmd *exec.Cmd, timeout time.Duration) error {
 
 type testCase interface {
 	setup() error
-	run(client endpoint, server endpoint, verbose bool) error
+	run(client endpoint, server endpoint) error
 	verify() error
 }
 
@@ -144,7 +144,7 @@ func (t *testCaseDC) setup() error {
 	return nil
 }
 
-func (t *testCaseDC) run(client endpoint, server endpoint, verbose bool) error {
+func (t *testCaseDC) run(client endpoint, server endpoint) error {
 	pc, _, _, _ := runtime.Caller(0)
 	fn := runtime.FuncForPC(pc)
 
@@ -181,7 +181,7 @@ func (t *testCaseDC) run(client endpoint, server endpoint, verbose bool) error {
 		}
 		return &testError{err: fmt.Sprintf("docker-compose up: %s", err), funcName: fn.Name()}
 	}
-	if verbose {
+	if *verboseMode {
 		log.Println(cmdOut.String())
 	}
 	runLog, err := os.Create(filepath.Join(testOutputsDir, "run.txt"))

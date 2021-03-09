@@ -23,19 +23,14 @@ make runner
 ```
 
 2. Tests are run with `docker-compose`, with the artifacts copied into a virtual
-volume. To run a test, you must first build the simulated network image ...
+volume. To run a test with, say, BoringSSL as server and Cloudflare-Go as client,
+you must first build the necessary docker images ...
 ```
-./bin/runner --build-network
-```
-
-3. ... and then the endpoints. For example, to build a BoringSSL server and
-Cloudflare-Go client:
-
-```
-./bin/runner --client=cloudflare-go --server=boringssl --build
+./bin/runner --client=boringssl --server=cloudflare-go --build
 ```
 
-4. You're now ready to run tests. For example, to run the server-side delegated credential
+
+3. You're now ready to run tests. For example, to run the server-side delegated credential
 test:
 
 ```

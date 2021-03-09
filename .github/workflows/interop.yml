@@ -136,5 +136,5 @@ jobs:
         run: |
           (./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --alltestcases || true)
           mkdir -p logs/${{ matrix.client }}/${{ matrix.server }}
-          mv generated/test-outputs/* logs/${{ matrix.client }}/${{ matrix.client }}/
+          mv generated/*-out logs/${{ matrix.client }}/${{ matrix.client }}/
         working-directory: go/src/github.com/${{ github.repository }}

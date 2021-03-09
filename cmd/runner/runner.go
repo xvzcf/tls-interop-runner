@@ -12,15 +12,17 @@ import (
 
 const usage = `Usage:
 
-    $ runner [--help] {--client STRING} {--server STRING} {--testcase STRING|--alltestcases} [--build] [--build-network]
+    $ runner [--help] {--client STRING} {--server STRING} {--testcase STRING|--alltestcases} [--build] [--verbose]
 
     $ runner --client=boringssl --server=cloudflare-go --build builds boringssl as a client and cloudflare-go as a server (and all dependant services)
-    $ runner --client=boringssl --server=cloudflare-go --testcase=dc [--build] (rebuilds the endpoints, then) runs just the dc test with the boringssl client and cloudflare-go server
+    $ runner --client=boringssl --server=cloudflare-go --testcase=dc [--build] (rebuilds the endpoints and their dependencies, then) runs just the dc test with the boringssl client and cloudflare-go server
     $ runner --client=boringssl --server=cloudflare-go --alltestcases [--build] (rebuilds the endpoints, then) runs just the dc test with the boringssl client and cloudflare-go server
 `
 
 var testInputsDir = filepath.Join("generated", "test-inputs")
 var testOutputsDir = filepath.Join("generated", "test-outputs")
+
+var verboseMode = flag.Bool("verbose", false, "")
 
 func main() {
 	log.SetFlags(0)
@@ -110,17 +112,19 @@ func main() {
 					log.Fatal("Error generating test inputs.")
 				}
 				fmt.Printf("client=%s,server=%s,", client.name, server.name)
-				err = t.run(client, server, false)
+				err = t.run(client, server)
 				if err != nil {
 					log.Println(err)
-					continue
+					goto moveOutputs
 				}
 				err = t.verify()
 				if err != nil {
 					log.Println(err)
-					continue
+					goto moveOutputs
 				}
-				destDir := filepath.Join("generated", name)
+				log.Println("Success")
+			moveOutputs:
+				destDir := filepath.Join("generated", fmt.Sprintf("%s-out", name))
 				err = os.RemoveAll(destDir)
 				if err != nil {
 					log.Fatal(err)
@@ -129,7 +133,6 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				log.Println("Success")
 			}
 		} else if *testCaseName != "" {
 			if t, ok := testCases[*testCaseName]; ok {
@@ -137,7 +140,7 @@ func main() {
 				if err != nil {
 					log.Fatal("Error generating test inputs.")
 				}
-				err = t.run(client, server, true)
+				err = t.run(client, server)
 				if err != nil {
 					log.Fatal(err.Error())
 				}
