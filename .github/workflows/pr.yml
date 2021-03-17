@@ -26,6 +26,8 @@ jobs:
         run: |
           pip3 install reuse
           reuse lint
+        working-directory: go/src/github.com/${{ github.repository }}
       - name: Ensure that Go code is well formatted
         run: test -z $(go fmt ./...)
+        working-directory: go/src/github.com/${{ github.repository }}
 
