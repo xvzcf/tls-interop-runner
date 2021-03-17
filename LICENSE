@@ -1,3 +1,7 @@
-The MIT license applies to tls-interop-runner in general. tls-interop-runner also includes third-party code that is licensed differently; each file contains SPDX annotations stating the licenses and copyrights that apply to the contents of the file as well as comments marking specific code as being third-party or as having third-party origin.
+The MIT license applies to tls-interop-runner in general. tls-interop-runner
+also includes third-party code with varied licenses; each file contains SPDX
+annotations stating the license(s) and copyrights that apply to the contents of
+the file as well as comments marking specific code as being third-party or as
+having third-party origin.
 
 A copy of each license is provided in the "LICENSES" directory.

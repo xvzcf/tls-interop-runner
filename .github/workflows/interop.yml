@@ -1,9 +1,21 @@
+# SPDX-FileCopyrightText: 2019 Jana Iyengar, Marten Seemann
+# SPDX-License-Identifier: Apache-2.0
+
+# This file is taken from https://github.com/marten-seemann/quic-interop-runner
+# and has been modified by the tls-interop-runner Authors.
+
 name: interop
-on: push
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [synchronize, opened, reopened, ready_for_review]
 
 jobs:
-  config:
+  setup:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
     outputs:
       endpoints: ${{ steps.set-endpoints.outputs.endpoints }}
       servers: ${{ steps.set-servers.outputs.servers }}
@@ -44,6 +56,7 @@ jobs:
   build-save-network:
     runs-on: ubuntu-latest
     name: Build network
+    if: github.event.pull_request.draft == false
     steps:
       - uses: actions/checkout@v2
         with:
@@ -62,11 +75,11 @@ jobs:
           if-no-files-found: error
 
   build-save-endpoints:
-    needs: [ config ]
+    needs: [ setup ]
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        endpoint: ${{ fromJson(needs.config.outputs.endpoints) }}
+        endpoint: ${{ fromJson(needs.setup.outputs.endpoints) }}
     name: Build ${{ matrix.endpoint }}
     steps:
       - uses: actions/checkout@v2
@@ -86,14 +99,14 @@ jobs:
           if-no-files-found: error
 
   tests:
-    needs: [ config, build-save-network, build-save-endpoints ]
+    needs: [ setup, build-save-network, build-save-endpoints ]
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
-        server: ${{ fromJson(needs.config.outputs.servers) }}
-        client: ${{ fromJson(needs.config.outputs.clients) }}
+        server: ${{ fromJson(needs.setup.outputs.servers) }}
+        client: ${{ fromJson(needs.setup.outputs.clients) }}
     name: (${{ matrix.server }} - ${{ matrix.client }})
     steps:
       - uses: actions/setup-go@v1

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors
+// SPDX-License-Identifier: MIT
+
 package main
 
 import (
@@ -14,9 +17,9 @@ const usage = `Usage:
 
     $ runner [--help] {--client STRING} {--server STRING} {--testcase STRING|--alltestcases} [--build] [--verbose]
 
-    $ runner --client=boringssl --server=cloudflare-go --build builds boringssl as a client and cloudflare-go as a server (and all dependant services)
-    $ runner --client=boringssl --server=cloudflare-go --testcase=dc [--build] (rebuilds the endpoints and their dependencies, then) runs just the dc test with the boringssl client and cloudflare-go server
-    $ runner --client=boringssl --server=cloudflare-go --alltestcases [--build] (rebuilds the endpoints, then) runs just the dc test with the boringssl client and cloudflare-go server
+    $ runner --client=boringssl --server=cloudflare-go --build builds boringssl as a client and cloudflare-go as a server (and all their dependent services)
+    $ runner --client=boringssl --server=cloudflare-go --testcase=dc [--build] (rebuilds the endpoints, their dependencies, then) runs just the dc test with boringssl as client and cloudflare-go as server
+    $ runner --client=boringssl --server=cloudflare-go --alltestcases [--build] (rebuilds the endpoints, their dependencies, then) runs all testcases with boringssl as client and cloudflare-go as server
 `
 
 var testInputsDir = filepath.Join("generated", "test-inputs")

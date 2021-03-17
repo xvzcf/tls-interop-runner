@@ -5,9 +5,9 @@ FROM golang:latest AS builder
 
 RUN apt-get update && \
     apt-get install git
-RUN rm -fr /cf-go && git clone https://github.com/cloudflare/go /cf-go
+RUN git clone https://github.com/cloudflare/go /cf
 
-WORKDIR /cf-go/src
+WORKDIR /cf/src
 RUN git checkout 2a17ea31d28264fccfec4e59dc2ac733b6c73dec
 RUN ./make.bash
 
@@ -16,11 +16,11 @@ FROM ubuntu:20.04
 RUN apt-get update && \
     apt-get install -y net-tools tcpdump ethtool iproute2
 
-COPY --from=builder /cf-go /cf-go
+COPY --from=builder /cf /cf
 
 COPY runner.go config.go /
 
-RUN /cf-go/bin/go build -o /usr/bin/runner runner.go config.go
+RUN /cf/bin/go build -o /usr/bin/runner runner.go config.go
 
 COPY run_endpoint.sh /
 RUN chmod +x /run_endpoint.sh
