@@ -41,14 +41,6 @@ func init() {
 		log.Fatal(err)
 	}
 
-	clientFacingCert, err := tls.LoadX509KeyPair(
-		"/test-inputs/client-facing.crt",
-		"/test-inputs/client-facing.key",
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	serverKeyLog, err := os.OpenFile("/test-outputs/server_keylog", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		log.Fatal(err)
@@ -56,7 +48,6 @@ func init() {
 	baseServerConfig = &tls.Config{
 		Certificates: []tls.Certificate{
 			serverCert,
-			clientFacingCert,
 		},
 		KeyLogWriter: serverKeyLog,
 	}
@@ -83,7 +74,16 @@ func echServerConfig(keysFile string) (*tls.Config, error) {
 		return nil, err
 	}
 
+	clientFacingCert, err := tls.LoadX509KeyPair(
+		"/test-inputs/client-facing.crt",
+		"/test-inputs/client-facing.key",
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	config := baseServerConfig.Clone()
+	config.Certificates = append(config.Certificates, clientFacingCert)
 	config.ServerECHProvider = echProvider
 	config.ECHEnabled = true
 	return config, nil

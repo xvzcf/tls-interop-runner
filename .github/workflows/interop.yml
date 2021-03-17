@@ -1,0 +1,153 @@
+# SPDX-FileCopyrightText: 2019 Jana Iyengar, Marten Seemann
+# SPDX-License-Identifier: Apache-2.0
+
+# This file is taken from https://github.com/marten-seemann/quic-interop-runner
+# and has been modified by the tls-interop-runner Authors.
+
+name: interop
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [synchronize, opened, reopened, ready_for_review]
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    outputs:
+      endpoints: ${{ steps.set-endpoints.outputs.endpoints }}
+      servers: ${{ steps.set-servers.outputs.servers }}
+      clients: ${{ steps.set-clients.outputs.clients }}
+    steps:
+      - uses: actions/setup-go@v1
+        with:
+          go-version: '1.16'
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+          path: go/src/github.com/${{ github.repository }}
+      - name: Build test runner
+        run: make runner
+        working-directory: go/src/github.com/${{ github.repository }}
+      - name: List interop endpoints
+        id: set-endpoints
+        run: |
+          ENDPOINTS=$(./bin/runner --list-interop-endpoints)
+          echo $ENDPOINTS
+          echo "::set-output name=endpoints::$ENDPOINTS"
+        working-directory: go/src/github.com/${{ github.repository }}
+      - name: Determine interop clients
+        id: set-clients
+        run: |
+          CLIENTS=$(./bin/runner --list-interop-clients)
+          echo $CLIENTS
+          echo "::set-output name=clients::$CLIENTS"
+        working-directory: go/src/github.com/${{ github.repository }}
+      - name: Determine interop servers
+        id: set-servers
+        run: |
+          SERVERS=$(./bin/runner --list-interop-servers)
+          echo $SERVERS
+          echo "::set-output name=servers::$SERVERS"
+        working-directory: go/src/github.com/${{ github.repository }}
+
+  build-save-network:
+    runs-on: ubuntu-latest
+    name: Build network
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Run docker build
+        run: docker build network --tag tls-interop-network
+      - name: Save Docker image
+        run: |
+          docker save tls-interop-network | gzip --best > tls-interop-network.tar.gz
+          du -sh tls-interop-network.tar.gz
+      - name: Upload result
+        uses: actions/upload-artifact@v2
+        with:
+          name: tls-interop-network
+          path: tls-interop-network.tar.gz
+          if-no-files-found: error
+
+  build-save-endpoints:
+    needs: [ setup ]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        endpoint: ${{ fromJson(needs.setup.outputs.endpoints) }}
+    name: Build ${{ matrix.endpoint }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Run docker build
+        run: docker build impl-endpoints/${{ matrix.endpoint }} --tag tls-endpoint-${{ matrix.endpoint }}
+      - name: Save Docker image
+        run: |
+          docker save tls-endpoint-${{ matrix.endpoint }} | gzip --best > tls-endpoint-${{ matrix.endpoint }}.tar.gz
+          du -sh tls-endpoint-${{ matrix.endpoint }}.tar.gz
+      - name: Upload result
+        uses: actions/upload-artifact@v2
+        with:
+          name: tls-endpoint-${{ matrix.endpoint }}
+          path: tls-endpoint-${{ matrix.endpoint }}.tar.gz
+          if-no-files-found: error
+
+  tests:
+    needs: [ setup, build-save-network, build-save-endpoints ]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        server: ${{ fromJson(needs.setup.outputs.servers) }}
+        client: ${{ fromJson(needs.setup.outputs.clients) }}
+    name: (${{ matrix.server }} - ${{ matrix.client }})
+    steps:
+      - uses: actions/setup-go@v1
+        with:
+          go-version: '1.16'
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+          path: go/src/github.com/${{ github.repository }}
+      - name: Enable IPv6 support
+        run: sudo modprobe ip6table_filter
+      - name: Install Tshark
+        run: |
+          sudo add-apt-repository -y ppa:wireshark-dev/stable
+          sudo apt-get update
+          echo 'no' | sudo apt-get -y install tshark
+      - name: Download network image
+        uses: actions/download-artifact@v2
+        with:
+          name: tls-interop-network
+      - name: Download ${{ matrix.client }} Docker endpoint
+        uses: actions/download-artifact@v2
+        with:
+          name: tls-endpoint-${{ matrix.client }}
+      - name: Download ${{ matrix.server }} Docker endpoint
+        if: ${{ matrix.server != matrix.client }}
+        uses: actions/download-artifact@v2
+        with:
+          name: tls-endpoint-${{ matrix.server }}
+      - name: Load docker images
+        run: |
+          docker load --input tls-interop-network.tar.gz
+          docker load --input tls-endpoint-${{ matrix.client }}.tar.gz
+          docker load --input tls-endpoint-${{ matrix.server }}.tar.gz
+      - run: docker image ls
+      - name: Build test runner
+        run: make runner
+        working-directory: go/src/github.com/${{ github.repository }}
+      - name: Run tests
+        run: |
+          (./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --alltestcases || true)
+          mkdir -p logs/${{ matrix.client }}/${{ matrix.server }}
+          mv generated/*-out logs/${{ matrix.client }}/${{ matrix.client }}/
+        working-directory: go/src/github.com/${{ github.repository }}

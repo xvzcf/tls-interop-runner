@@ -6,8 +6,7 @@ FROM rust:1.44 AS builder
 RUN git clone https://github.com/ctz/rustls.git /rustls
 
 WORKDIR /rustls
-
-RUN git rev-parse HEAD > /commit.txt
+RUN git checkout 1721e5188f030aa13039753de25f77ff7cbba867
 RUN cargo build --examples --release
 
 FROM ubuntu:20.04

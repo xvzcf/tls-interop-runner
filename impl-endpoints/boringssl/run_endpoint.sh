@@ -9,7 +9,7 @@ sh /setup-routes.sh
 
 if [ "$ROLE" = "client" ]; then
     # TODO
-    true
+    exit 64
 else
     echo "Running BoringSSL server."
     echo "Server params: $SERVER_PARAMS"

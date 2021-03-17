@@ -12,36 +12,27 @@ Runner](https://github.com/marten-seemann/quic-interop-runner).
 
 ## Quickstart
 
-You will need to have golang installed.
+You will need to have Go 1.15+ installed.
 
-You will need to clone this repository on the `src` directory of your
-`$GOPATH`. To learn your `$GOPATH`, use `go env`.
+0. Clone this repository to the `src` directory of your `$GOPATH`.
+To learn your `$GOPATH`, use `go env`.
 
-Tests require certificates and other cryptographic artifacts to be generated
-beforehand.
-
+1. Build the interop runner. The runner can then be invoked as `./bin/runner`
 ```
-make testinputs
+make runner
 ```
 
-This command will generate:
-* A root certificate
-* Intermediate certificates
-* A delegated credential
-* ECH configuration files
-
-Tests are run with `docker-compose`, with the artifacts copied into a virtual
-volume. To run a test, you must first build the endpoints. For example, to build
-a BoringSSL server and Cloudflare-Go client:
-
+2. Tests are run with `docker-compose`, with the artifacts copied into a virtual
+volume. To run a test with, say, BoringSSL as server and Cloudflare-Go as client,
+you must first build the necessary docker images ...
 ```
-./build.sh cloudflare-go boringssl
+./bin/runner --client=boringssl --server=cloudflare-go --build
 ```
 
-You're now ready to run tests. The test case is also specified by setting an
-environment variable. For example, to run the server-side delegated credential
+
+3. You're now ready to run tests. For example, to run the server-side delegated credential
 test:
 
 ```
-./run.sh cloudflare-go boringssl dc
+./bin/runner --client=cloudflare-go --server=boringssl --testcase=dc
 ```

@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors
+# SPDX-License-Identifier: MIT
+
+name: PR lint check
+on:
+  pull_request:
+    branches: [main]
+    types: [synchronize, opened, reopened, ready_for_review]
+
+jobs:
+  check-PR:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/setup-go@v1
+        with:
+          go-version: '1.16'
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+          path: go/src/github.com/${{ github.repository }}
+      - name: Check REUSE compliance
+        run: |
+          pip3 install reuse
+          reuse lint
+        working-directory: go/src/github.com/${{ github.repository }}
+      - name: Ensure that Go code is well formatted
+        run: test -z $(go fmt ./...)
+        working-directory: go/src/github.com/${{ github.repository }}
+
