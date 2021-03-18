@@ -5,10 +5,10 @@ FROM golang:latest AS builder
 
 RUN apt-get update && \
     apt-get install git
-RUN git clone https://github.com/cloudflare/go /cf
+RUN git clone --branch caw/ech-10 https://github.com/cloudflare/go /cf
 
 WORKDIR /cf/src
-RUN git checkout 2a17ea31d28264fccfec4e59dc2ac733b6c73dec
+# RUN git checkout 2a17ea31d28264fccfec4e59dc2ac733b6c73dec
 RUN ./make.bash
 
 FROM ubuntu:20.04

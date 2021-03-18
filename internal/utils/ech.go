@@ -13,12 +13,15 @@ import (
 )
 
 const (
-	ECHVersionDraft09 uint16 = 0xfe09 // draft-ietf-tls-esni-09
+	ECHVersionDraft10 uint16 = 0xfe0a // draft-ietf-tls-esni-10
 )
 
 // ECHConfigTemplate defines the parameters for generating an ECH config and
 // corresponding key.
 type ECHConfigTemplate struct {
+	// The 1-byte configuration identifier.
+	Id uint8
+
 	// The version of ECH to use for this configuration.
 	Version uint16
 
@@ -65,7 +68,7 @@ type ECHKey struct {
 // GenerateECHKey generates an ECH config and corresponding key using the
 // parameters specified by template.
 func GenerateECHKey(template ECHConfigTemplate) (*ECHKey, error) {
-	if template.Version != ECHVersionDraft09 {
+	if template.Version != ECHVersionDraft10 {
 		return nil, errors.New("template version not supported")
 	}
 
@@ -92,13 +95,11 @@ func GenerateECHKey(template ECHConfigTemplate) (*ECHKey, error) {
 	var c cryptobyte.Builder
 	c.AddUint16(template.Version)
 	c.AddUint16LengthPrefixed(func(c *cryptobyte.Builder) { // contents
-		c.AddUint16LengthPrefixed(func(c *cryptobyte.Builder) {
-			c.AddBytes([]byte(template.PublicName))
-		})
+		c.AddUint8(template.Id)
+		c.AddUint16(template.KemId)
 		c.AddUint16LengthPrefixed(func(c *cryptobyte.Builder) {
 			c.AddBytes(publicKey)
 		})
-		c.AddUint16(template.KemId)
 		c.AddUint16LengthPrefixed(func(c *cryptobyte.Builder) {
 			for _, kdfId := range template.KdfIds {
 				for _, aeadId := range template.AeadIds {
@@ -108,6 +109,9 @@ func GenerateECHKey(template ECHConfigTemplate) (*ECHKey, error) {
 			}
 		})
 		c.AddUint16(template.MaximumNameLength)
+		c.AddUint16LengthPrefixed(func(c *cryptobyte.Builder) {
+			c.AddBytes([]byte(template.PublicName))
+		})
 		c.AddUint16LengthPrefixed(func(c *cryptobyte.Builder) {
 			c.AddBytes(template.Extensions)
 		})

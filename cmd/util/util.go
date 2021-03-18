@@ -113,8 +113,9 @@ func main() {
 	} else if *makeECH {
 		err = utils.MakeECHKey(
 			utils.ECHConfigTemplate{
+				Id:         123, // This is chosen at random by the client-facing server.
 				PublicName: *hostName,
-				Version:    utils.ECHVersionDraft09,
+				Version:    utils.ECHVersionDraft10,
 				KemId:      uint16(hpke.KEM_X25519_HKDF_SHA256),
 				KdfIds: []uint16{
 					uint16(hpke.KDF_HKDF_SHA256),

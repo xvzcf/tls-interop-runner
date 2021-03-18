@@ -9,7 +9,7 @@ required by the selfserv utility in NSS. Specifically, the output is formed as f
 
     *  struct {
     *     opaque pkcs8_ech_keypair<0..2^16-1>;
-    *     ECHConfigs configs<0..2^16>; // draft-ietf-tls-esni-09
+    *     ECHConfigList configs<0..2^16>; // draft-ietf-tls-esni-09
     * } ECHKey;
 """
 
@@ -17,7 +17,7 @@ import sys
 import struct
 import base64
 
-ECH_VERSION = 0xFE09
+ECH_VERSION = 0xFE0A
 DHKEM_X25519_SHA256 = 0x0020
 
 # Hardcoded ASN.1 for ECPrivateKey, curve25519. See section 2 of rfc5958.
@@ -30,41 +30,54 @@ def convert_ech_key(in_file, out_file):
         ech_keypair = base64.b64decode(f.read(), None, True)
 
         offset = 0
+
+        # Parse the private key.
         length = struct.unpack("!H", ech_keypair[:2])[0]
         offset += 2
         private_key = ech_keypair[offset : offset + length]
         offset += length
 
-        ech_configs = ech_keypair[offset:]
+        # Encode the ECHConfigList that will be output.
+        ech_config_list = ech_keypair[offset:]
 
-        # Parse the public key out of the ECHConfig.
+        # Parse the length of the ECHConfigList.
         length = struct.unpack("!H", ech_keypair[offset : offset + 2])[0]
         offset += 2
+
+        # Parse ECHConfig.version, where ECHConfig is the first configuration in
+        # ECHConfigList.
         version = struct.unpack("!H", ech_keypair[offset : offset + 2])[0]
         offset += 2
 
+        # Verify that the version number is as expected.
         if version != ECH_VERSION:
-            print("ECHConfig.version is not 0xFE09: %x", hex(version))
+            print("ECHConfig.version is not 0xfe0a: got", hex(version))
             exit(1)
 
+        # Parse ECHConfig.Length, which indicates the length of
+        # ECHConfig.contents.
         length = struct.unpack("!H", ech_keypair[offset : offset + 2])[0]
         offset += 2
 
-        # Public name
-        length = struct.unpack("!H", ech_keypair[offset : offset + 2])[0]
-        offset += 2 + length
+        # Parse ECHConfig.contents.key_config.config_id.
+        config_id = struct.unpack("!B", ech_keypair[offset : offset + 1])[0]
+        offset += 1
 
-        # Public key
-        length = struct.unpack("!H", ech_keypair[offset : offset + 2])[0]
+        # Parse ECHConfig.contents.key_config.kem_id.
+        kem_id = struct.unpack("!H", ech_keypair[offset : offset + 2])[0]
         offset += 2
-        public_key = ech_keypair[offset : offset + length]
-        offset += length
 
         # Verify that the KEM is X25519. We don't support anything else.
         kem_id = struct.unpack("!H", ech_keypair[offset : offset + 2])[0]
         if kem_id != DHKEM_X25519_SHA256:
             print("Unsupported KEM ID: %x", hex(kem_id))
             exit(1)
+
+        # Parse ECHConfig.contents.key_config.public_key.
+        length = struct.unpack("!H", ech_keypair[offset : offset + 2])[0]
+        offset += 2
+        public_key = ech_keypair[offset : offset + length]
+        offset += length
 
         pkcs8 = bytearray()
         pkcs8 += (
@@ -75,7 +88,7 @@ def convert_ech_key(in_file, out_file):
         )
 
         out_bytes = bytearray()
-        out_bytes += struct.pack("!H", len(pkcs8)) + pkcs8 + ech_configs
+        out_bytes += struct.pack("!H", len(pkcs8)) + pkcs8 + ech_config_list
 
         out = open(out_file, "wb")
         out.write(base64.b64encode(out_bytes))
