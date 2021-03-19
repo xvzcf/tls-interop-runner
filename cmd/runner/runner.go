@@ -99,7 +99,7 @@ func main() {
 			} else {
 				env = append(env, "SERVER_SRC=impl-endpoints")
 			}
-			env = append(env, fmt.Sprintf("SERVER=%s", client.name))
+			env = append(env, fmt.Sprintf("SERVER=%s", server.name))
 			cmd.Env = env
 			err := cmd.Run()
 			if err != nil {
