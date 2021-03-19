@@ -29,7 +29,6 @@ you must first build the necessary docker images ...
 ./bin/runner --client=boringssl --server=cloudflare-go --build
 ```
 
-
 3. You're now ready to run tests. For example, to run the server-side delegated credential
 test:
 
