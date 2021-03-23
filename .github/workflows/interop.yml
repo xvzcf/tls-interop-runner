@@ -29,7 +29,7 @@ jobs:
           fetch-depth: 1
           path: go/src/github.com/${{ github.repository }}
       - name: Build test runner
-        run: make runner
+        run: make runner && make util
         working-directory: go/src/github.com/${{ github.repository }}
       - name: List interop endpoints
         id: set-endpoints
@@ -143,11 +143,14 @@ jobs:
           docker load --input tls-endpoint-${{ matrix.server }}.tar.gz
       - run: docker image ls
       - name: Build test runner
-        run: make runner
+        run: make runner && make util
         working-directory: go/src/github.com/${{ github.repository }}
       - name: Run tests
+        env:
+          TOKEN: ${{ secrets.RESULTSAPITOKEN }}
         run: |
           (./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --alltestcases || true)
+          (BEARER_TOKEN=$TOKEN ./bin/util -process-results -path=generated || true)
           mkdir -p logs/${{ matrix.client }}/${{ matrix.server }}
           mv generated/*-out logs/${{ matrix.client }}/${{ matrix.client }}/
         working-directory: go/src/github.com/${{ github.repository }}

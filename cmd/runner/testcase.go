@@ -173,20 +173,31 @@ func (t *testCaseDC) run(client endpoint, server endpoint) error {
 	cmd.Stdout = &cmdOut
 	cmd.Stderr = &cmdOut
 
-	err := cmd.Start()
+	testStatusFile, err := os.Create(filepath.Join(testOutputsDir, "test.txt"))
 	if err != nil {
+		return &testError{err: fmt.Sprintf("os.Create failed: %s", err), funcName: fn.Name()}
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		_, _ = testStatusFile.WriteString(fmt.Sprintf("%s,%s,%s,%s", client.name, server.name, t.name, "error"))
 		return &testError{err: fmt.Sprintf("docker-compose up start(): %s", err), funcName: fn.Name()}
 	}
+
 	err = waitWithTimeout(cmd, t.timeout)
 	if err != nil {
 		if strings.Contains(err.Error(), "exit status 64") {
+			_, _ = testStatusFile.WriteString(fmt.Sprintf("%s,%s,%s,%s", client.name, server.name, t.name, "skipped"))
 			return &testError{err: fmt.Sprintf("docker-compose up: %s", err), funcName: fn.Name(), unsupported: true}
 		}
+		_, _ = testStatusFile.WriteString(fmt.Sprintf("%s,%s,%s,%s", client.name, server.name, t.name, "failed"))
 		return &testError{err: fmt.Sprintf("docker-compose up: %s", err), funcName: fn.Name()}
 	}
 	if *verboseMode {
 		log.Println(cmdOut.String())
 	}
+
+	_, _ = testStatusFile.WriteString(fmt.Sprintf("%s,%s,%s,%s", client.name, server.name, t.name, "success"))
 	runLog, err := os.Create(filepath.Join(testOutputsDir, "run.txt"))
 	if err != nil {
 		return &testError{err: fmt.Sprintf("os.Create failed: %s", err), funcName: fn.Name()}
@@ -195,6 +206,7 @@ func (t *testCaseDC) run(client endpoint, server endpoint) error {
 	if err != nil {
 		return &testError{err: fmt.Sprintf("WriteString failed: %s", err), funcName: fn.Name()}
 	}
+
 	return nil
 }
 
