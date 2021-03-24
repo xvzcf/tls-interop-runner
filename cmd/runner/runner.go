@@ -27,6 +27,13 @@ var testOutputsDir = filepath.Join("generated", "test-outputs")
 
 var verboseMode = flag.Bool("verbose", false, "")
 
+type logWriter struct {
+}
+
+func (l logWriter) Write(p []byte) (n int, err error) {
+	return len(p), log.Output(0, string(p))
+}
+
 func main() {
 	log.SetFlags(0)
 	var (
@@ -101,6 +108,10 @@ func main() {
 			}
 			env = append(env, fmt.Sprintf("SERVER=%s", server.name))
 			cmd.Env = env
+			if *verboseMode {
+				cmd.Stdout = logWriter{}
+				cmd.Stderr = logWriter{}
+			}
 			err := cmd.Run()
 			if err != nil {
 				log.Fatalf("docker-compose build: %s", err)
