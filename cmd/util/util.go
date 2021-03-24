@@ -19,12 +19,15 @@ const usage = `Usage:
 
     $ util -make-root -out root.crt -key-out root.key -host root.com
     $ util -make-intermediate -cert-in parent.crt -key-in parent.key -out child.crt -key-out child.key -host example.com
-    $ util -make-dc -cert-in leaf.crt -key-in leaf.key -alg algorithm -out dc.txt
+    $ util -make-dc -cert-in leaf.crt -key-in leaf.key -out dc.txt
     $ util -make-ech-key -cert-in client-facing.crt -out ech_configs -key-out ech_key
     $ util -make-ech-key -cert-in client_facing.crt -out ech_configs -key-out ech_key
     $ util -process-results -path /path/to/results
 
-    Note: This is a barebones CLI intended for basic usage/debugging.
+    The -alg option can be passed to -make-root, -make-intermediate, and -make-dc.
+    When it is not specified, a suitable one is chosen at random.
+
+    Note: This CLI is present only to faciliate basic testing and debugging.
 `
 
 func main() {
@@ -55,21 +58,20 @@ func main() {
 	if *makeIntermediateCert && (*inCertPath == "" || *outKeyPath == "" || *inKeyPath == "" || *outPath == "" || *hostName == "") {
 		log.Fatalln("ERROR: -make-intermediate requires -cert-in, -key-in, -out, -key-out, -host")
 	}
-	if *makeDC && (*inCertPath == "" || *outPath == "" || *inKeyPath == "" || *algorithm == 0) {
-		log.Fatalln("ERROR: -make-dc requires -cert-in, -key-in, -alg, -out")
+	if *makeDC && (*inCertPath == "" || *outPath == "" || *inKeyPath == "") {
+		log.Fatalln("ERROR: -make-dc requires -cert-in, -key-in, -out")
 	}
 	if *makeECH && (*hostName == "") {
 		log.Fatalln("ERROR: -make-ech requires -host")
 	}
 
-	var err error
 	if *makeRootCert {
-		err = utils.MakeRootCertificate(
+		keypairAlgorithm, err := utils.MakeRootCertificate(
 			&utils.Config{
 				Hostnames:          []string{*hostName},
 				ValidFrom:          time.Now(),
 				ValidFor:           365 * 25 * time.Hour,
-				SignatureAlgorithm: utils.SignatureECDSAWithP521AndSHA512,
+				SignatureAlgorithm: uint16(*algorithm),
 			},
 			*outPath,
 			*outKeyPath,
@@ -77,15 +79,14 @@ func main() {
 		if err != nil {
 			log.Fatalf("ERROR: %s\n", err)
 		}
-		log.Printf("Created a new root certificate at %s.\n", *outPath)
-		log.Printf("Created a new root key at %s.\n", *outKeyPath)
+		log.Printf("The new root certificate and key with algorithm 0x%X are at %s and %s.\n", keypairAlgorithm, *outPath, *outKeyPath)
 	} else if *makeIntermediateCert {
-		err = utils.MakeIntermediateCertificate(
+		keypairAlgorithm, err := utils.MakeIntermediateCertificate(
 			&utils.Config{
 				Hostnames:          []string{*hostName},
 				ValidFrom:          time.Now(),
 				ValidFor:           365 * 25 * time.Hour,
-				SignatureAlgorithm: utils.SignatureECDSAWithP256AndSHA256,
+				SignatureAlgorithm: uint16(*algorithm),
 				ForDC:              true,
 			},
 			*inCertPath,
@@ -96,15 +97,13 @@ func main() {
 		if err != nil {
 			log.Fatalf("ERROR: %s\n", err)
 		}
-		log.Printf("Created a new intermediate certificate at %s.\n", *outPath)
-		log.Printf("Created a new intermediate key at %s.\n", *outKeyPath)
+		log.Printf("The new intermediate certificate and key with algorithm 0x%X are at %s and %s.\n", keypairAlgorithm, *outPath, *outKeyPath)
 	} else if *makeDC {
-		err = utils.MakeDelegatedCredential(
+		keypairAlgorithm, err := utils.MakeDelegatedCredential(
 			&utils.Config{
 				ValidFor:           24 * time.Hour,
 				SignatureAlgorithm: uint16(*algorithm),
 			},
-			&utils.Config{},
 			*inCertPath,
 			*inKeyPath,
 			*outPath,
@@ -112,9 +111,9 @@ func main() {
 		if err != nil {
 			log.Fatalf("ERROR: %s\n", err)
 		}
-		log.Printf("\nThe generated DC (format: DC, privkey) using algorithm %x is at \"%s\" \n\n", *algorithm, *outPath)
+		log.Printf("The new delegated credential (format: DC, privkey) with algorithm 0x%X is at \"%s\" \n", keypairAlgorithm, *outPath)
 	} else if *makeECH {
-		err = utils.MakeECHKey(
+		err := utils.MakeECHKey(
 			utils.ECHConfigTemplate{
 				PublicName: *hostName,
 				Version:    utils.ECHVersionDraft09,
@@ -134,7 +133,7 @@ func main() {
 			log.Fatalf("ERROR: %s\n", err)
 		}
 	} else if *processResults && *resultsPath != "" {
-		err = utils.ProcessTestResults(*resultsPath)
+        err := utils.ProcessTestResults(*resultsPath)
 		if err != nil {
 			log.Fatalf("ERROR: %s\n", err)
 		}

@@ -160,13 +160,14 @@ func doClient(t TestHandler) error {
 	}
 
 	c, err := tls.Dial("tcp", "example.com:4433", config)
-	if err == nil {
-		defer c.Close()
+	if err != nil {
+		return err
 	}
+	defer c.Close()
 
 	err = t.ConnectionHandler(c, err)
 	if err != nil {
-		log.Print(err)
+		return err
 	}
 	return nil
 }

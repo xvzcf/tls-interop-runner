@@ -14,6 +14,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -31,21 +32,29 @@ import (
 	"path/filepath"
 )
 
+// TODO(xvzcf): When passed to x509.CreateCertificate, RSA keys will result in
+// an RSA-PKCS1 certificate being generated since we have no control over how
+// priv.(*crypto.Signer).Sign() is called in that function. This means we currently
+// cannot support RSA-PSS. x509.CreateCertificate also makes it hard to do
+// certificate fuzzing.
+// The solution might just be to reproduce the implementation of
+// x509.CreateCertificate here with appropriate modifications.
+
 // MakeRootCertificate is based on code found in https://github.com/FiloSottile/mkcert
-func MakeRootCertificate(config *Config, outPath string, outKeyPath string) error {
-	signer, err := getSigner(&config.Bugs, config.rand(), config.SignatureAlgorithm)
+func MakeRootCertificate(config *Config, outPath string, outKeyPath string) (uint16, error) {
+	signer, err := getSigner(config.rand(), config.SignatureAlgorithm, false)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	priv, pub, err := signer.GenerateKey()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	spkiASN1, err := x509.MarshalPKIXPublicKey(pub)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	var spki struct {
@@ -54,7 +63,7 @@ func MakeRootCertificate(config *Config, outPath string, outKeyPath string) erro
 	}
 	_, err = asn1.Unmarshal(spkiASN1, &spki)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	skid := sha1.Sum(spki.SubjectPublicKey.Bytes)
@@ -62,7 +71,7 @@ func MakeRootCertificate(config *Config, outPath string, outKeyPath string) erro
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(config.rand(), serialNumberLimit)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	tpl := &x509.Certificate{
@@ -90,45 +99,45 @@ func MakeRootCertificate(config *Config, outPath string, outKeyPath string) erro
 
 	cert, err := x509.CreateCertificate(config.rand(), tpl, tpl, pub, priv)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	privDER, err := x509.MarshalPKCS8PrivateKey(priv)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	err = ioutil.WriteFile(outKeyPath, pem.EncodeToMemory(
 		&pem.Block{Type: "PRIVATE KEY", Bytes: privDER}), 0600)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	err = ioutil.WriteFile(outPath, pem.EncodeToMemory(
 		&pem.Block{Type: "CERTIFICATE", Bytes: cert}), 0644)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return signer.algorithmID, nil
 }
 
 // MakeIntermediateCertificate is based on code found in https://github.com/FiloSottile/mkcert
-func MakeIntermediateCertificate(config *Config, inCertPath string, inKeyPath string, outPath string, outKeyPath string) error {
-	signer, err := getSigner(&config.Bugs, config.rand(), config.SignatureAlgorithm)
+func MakeIntermediateCertificate(config *Config, inCertPath string, inKeyPath string, outPath string, outKeyPath string) (uint16, error) {
+	signer, err := getSigner(config.rand(), config.SignatureAlgorithm, config.ForDC)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	priv, pub, err := signer.GenerateKey()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(config.rand(), serialNumberLimit)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	tpl := &x509.Certificate{
@@ -170,88 +179,88 @@ func MakeIntermediateCertificate(config *Config, inCertPath string, inKeyPath st
 
 	parentCertPEMBlock, err := ioutil.ReadFile(filepath.Join(inCertPath))
 	if err != nil {
-		return err
+		return 0, err
 	}
 	parentCertDERBlock, _ := pem.Decode(parentCertPEMBlock)
 	if parentCertDERBlock == nil || parentCertDERBlock.Type != "CERTIFICATE" {
-		return errors.New("failed to read input certificate: unexpected content")
+		return 0, errors.New("failed to read input certificate: unexpected content")
 	}
 	parentCert, err := x509.ParseCertificate(parentCertDERBlock.Bytes)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	parentKeyPEMBlock, err := ioutil.ReadFile(filepath.Join(inKeyPath))
 	if err != nil {
-		return err
+		return 0, err
 	}
 	parentKeyDERBlock, _ := pem.Decode(parentKeyPEMBlock)
 	if parentKeyDERBlock == nil || parentKeyDERBlock.Type != "PRIVATE KEY" {
-		return errors.New("failed to read input key: unexpected content")
+		return 0, errors.New("failed to read input key: unexpected content")
 	}
 	parentKey, err := x509.ParsePKCS8PrivateKey(parentKeyDERBlock.Bytes)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	cert, err := x509.CreateCertificate(config.rand(), tpl, parentCert, pub, parentKey)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert})
 	privDER, err := x509.MarshalPKCS8PrivateKey(priv)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	privPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privDER})
 
 	if outPath == outKeyPath {
 		err = ioutil.WriteFile(outKeyPath, append(certPEM, privPEM...), 0600)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	} else {
 		err = ioutil.WriteFile(outPath, certPEM, 0644)
 		if err != nil {
-			return err
+			return 0, err
 		}
 
 		err = ioutil.WriteFile(outKeyPath, privPEM, 0600)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
-	return nil
+	return signer.algorithmID, nil
 }
 
 // MakeDelegatedCredential is based on code found in https://boringssl.googlesource.com/boringssl/+/refs/heads/master/ssl/test/runner/
 // It generates a delegated credential for the party that asks for it
-func MakeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPath string, inKeyPath string, outPath string) error {
+func MakeDelegatedCredential(config *Config, inCertPath string, inKeyPath string, outPath string) (uint16, error) {
 	lifetimeSecs := int64(config.ValidFor.Seconds())
 	var dc []byte
 	// https://tools.ietf.org/html/draft-ietf-tls-subcerts-09#section-4
 	dc = append(dc, byte(lifetimeSecs>>24), byte(lifetimeSecs>>16), byte(lifetimeSecs>>8), byte(lifetimeSecs))
 	dc = append(dc, byte(config.SignatureAlgorithm>>8), byte(config.SignatureAlgorithm))
 
-	signer, err := getSigner(&config.Bugs, config.rand(), config.SignatureAlgorithm)
+	signer, err := getSigner(config.rand(), config.SignatureAlgorithm, true)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	priv, pub, err := signer.GenerateKey()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	privPKCS8, err := x509.MarshalPKCS8PrivateKey(priv)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	pubBytes, err := x509.MarshalPKIXPublicKey(pub)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	dc = append(dc, byte(len(pubBytes)>>16), byte(len(pubBytes)>>8), byte(len(pubBytes)))
@@ -259,28 +268,27 @@ func MakeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPat
 
 	parentCertPEMBlock, err := ioutil.ReadFile(filepath.Join(inCertPath))
 	if err != nil {
-		return err
+		return 0, err
 	}
 	parentCertDERBlock, _ := pem.Decode(parentCertPEMBlock)
 	if parentCertDERBlock == nil || parentCertDERBlock.Type != "CERTIFICATE" {
-		return errors.New("ERROR: failed to read the certificate: unexpected content")
+		return 0, errors.New("failed to read the certificate: unexpected content")
 	}
 
 	parentKeyPEMBlock, err := ioutil.ReadFile(filepath.Join(inKeyPath))
 	if err != nil {
-		return err
+		return 0, err
 	}
 	parentKeyDERBlock, _ := pem.Decode(parentKeyPEMBlock)
 	if parentKeyDERBlock == nil || parentKeyDERBlock.Type != "PRIVATE KEY" {
-		return errors.New("ERROR: failed to read the key: unexpected content")
+		return 0, errors.New("failed to read the key: unexpected content")
 	}
 	parentKey, err := x509.ParsePKCS8PrivateKey(parentKeyDERBlock.Bytes)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	var parentSigAlg uint16
-
 	parentPubKey := parentKey.(crypto.Signer).Public()
 	switch pk := parentPubKey.(type) {
 	case *ecdsa.PublicKey:
@@ -292,14 +300,24 @@ func MakeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPat
 		} else if curveName == "P-521" {
 			parentSigAlg = SignatureECDSAWithP521AndSHA512
 		} else {
-			return errors.New("ERROR: public key unsupported\n")
+			return 0, errors.New("public key unsupported\n")
 		}
 	case ed25519.PublicKey:
 		parentSigAlg = SignatureEd25519
+	case rsa.PublicKey:
+		bits := parentKey.(rsa.PrivateKey).N.BitLen()
+		if bits == 2048 {
+			parentSigAlg = SignatureRSAPKCS1WithSHA256
+		} else if bits == 3072 {
+			parentSigAlg = SignatureRSAPKCS1WithSHA384
+		} else if bits == 4096 {
+			parentSigAlg = SignatureRSAPKCS1WithSHA512
+		} else {
+			return 0, errors.New("error parsing RSA key.")
+		}
 	default:
-		return errors.New("ERROR: public key unsupported\n")
+		return 0, errors.New("public key unsupported\n")
 	}
-
 	dc = append(dc, byte(parentSigAlg>>8), byte(parentSigAlg))
 
 	messageToSign := make([]byte, 64, 128)
@@ -314,14 +332,14 @@ func MakeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPat
 	messageToSign = append(messageToSign, parentCertDERBlock.Bytes...)
 	messageToSign = append(messageToSign, dc...)
 
-	parentSigner, err := getSigner(&parentSignConfig.Bugs, parentSignConfig.rand(), parentSigAlg)
+	parentSigner, err := getSigner(config.rand(), parentSigAlg, false)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	parentSignature, err := parentSigner.SignWithKey(parentKey, messageToSign)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	dc = append(dc, byte(len(parentSignature)>>8), byte(len(parentSignature)))
@@ -330,9 +348,9 @@ func MakeDelegatedCredential(config *Config, parentSignConfig *Config, inCertPat
 	dcSerialized := fmt.Sprintf("%x,%x", dc, privPKCS8)
 	err = ioutil.WriteFile(outPath, []byte(dcSerialized), 0644)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+	return signer.algorithmID, nil
 }
 
 // MakeECHKey generates an ECH config and corresponding key, writing the key to

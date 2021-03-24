@@ -80,13 +80,11 @@ func (t *testCaseDC) setup() error {
 
 	var inputParams strings.Builder
 
-	rootSignatureAlgorithm := utils.SignatureECDSAWithP521AndSHA512
-	err = utils.MakeRootCertificate(
+	rootSignatureAlgorithm, err := utils.MakeRootCertificate(
 		&utils.Config{
 			Hostnames:          []string{"root.com"},
 			ValidFrom:          time.Now(),
 			ValidFor:           365 * 25 * time.Hour,
-			SignatureAlgorithm: rootSignatureAlgorithm,
 		},
 		filepath.Join(testInputsDir, "root.crt"),
 		filepath.Join(testInputsDir, "root.key"),
@@ -96,13 +94,11 @@ func (t *testCaseDC) setup() error {
 	}
 	inputParams.WriteString(fmt.Sprintf("Root certificate algorithm: 0x%X\n", rootSignatureAlgorithm))
 
-	intermediateSignatureAlgorithm := utils.SignatureECDSAWithP256AndSHA256
-	err = utils.MakeIntermediateCertificate(
+	intermediateSignatureAlgorithm, err := utils.MakeIntermediateCertificate(
 		&utils.Config{
 			Hostnames:          []string{"example.com"},
 			ValidFrom:          time.Now(),
 			ValidFor:           365 * 25 * time.Hour,
-			SignatureAlgorithm: intermediateSignatureAlgorithm,
 			ForDC:              true,
 		},
 		filepath.Join(testInputsDir, "root.crt"),
@@ -115,14 +111,11 @@ func (t *testCaseDC) setup() error {
 	}
 	inputParams.WriteString(fmt.Sprintf("Intermediate certificate algorithm: 0x%X\n", intermediateSignatureAlgorithm))
 
-	dcAlgorithm := utils.SignatureECDSAWithP256AndSHA256
 	dcValidFor := 24 * time.Hour
-	err = utils.MakeDelegatedCredential(
+	dcAlgorithm, err := utils.MakeDelegatedCredential(
 		&utils.Config{
 			ValidFor:           dcValidFor,
-			SignatureAlgorithm: dcAlgorithm,
 		},
-		&utils.Config{},
 		filepath.Join(testInputsDir, "example.crt"),
 		filepath.Join(testInputsDir, "example.key"),
 		filepath.Join(testInputsDir, "dc.txt"),
@@ -130,7 +123,7 @@ func (t *testCaseDC) setup() error {
 	if err != nil {
 		return err
 	}
-	inputParams.WriteString(fmt.Sprintf("Delegated credential algorithm: 0x%X\n", intermediateSignatureAlgorithm))
+	inputParams.WriteString(fmt.Sprintf("Delegated credential algorithm: 0x%X\n", dcAlgorithm))
 	inputParams.WriteString(fmt.Sprintf("DC valid for: %v\n", dcValidFor))
 
 	inputParamsLog, err := os.Create(filepath.Join(testOutputsDir, "input-params.txt"))
