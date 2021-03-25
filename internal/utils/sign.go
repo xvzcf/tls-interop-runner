@@ -148,7 +148,7 @@ func getSigner(randReader io.Reader, sigAlg uint16, selectValidDCAlg bool) (*Sig
 		if err != nil {
 			return nil, err
 		}
-		sigAlg = sigAlgList[int(buf[0])%len(sigAlgList)]
+		sigAlg = sigAlgList[int(buf[0]) % len(sigAlgList)]
 	}
 	switch sigAlg {
 	case SignatureECDSAWithP256AndSHA256:

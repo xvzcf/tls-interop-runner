@@ -241,12 +241,12 @@ func MakeDelegatedCredential(config *Config, inCertPath string, inKeyPath string
 	var dc []byte
 	// https://tools.ietf.org/html/draft-ietf-tls-subcerts-09#section-4
 	dc = append(dc, byte(lifetimeSecs>>24), byte(lifetimeSecs>>16), byte(lifetimeSecs>>8), byte(lifetimeSecs))
-	dc = append(dc, byte(config.SignatureAlgorithm>>8), byte(config.SignatureAlgorithm))
 
 	signer, err := getSigner(config.rand(), config.SignatureAlgorithm, true)
 	if err != nil {
 		return 0, err
 	}
+	dc = append(dc, byte(signer.algorithmID>>8), byte(signer.algorithmID))
 
 	priv, pub, err := signer.GenerateKey()
 	if err != nil {

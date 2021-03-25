@@ -46,7 +46,7 @@ func ProcessTestDirectory(dir string) error {
 			server = params[1]
 			testcase = params[2]
 			testData["result"] = params[3]
-		case "run.txt":
+		case "run-log.txt":
 			data, err := ioutil.ReadFile(path.Join(dir, f.Name()))
 			if err != nil {
 				return err

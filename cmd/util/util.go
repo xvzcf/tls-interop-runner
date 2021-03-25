@@ -133,7 +133,7 @@ func main() {
 			log.Fatalf("ERROR: %s\n", err)
 		}
 	} else if *processResults && *resultsPath != "" {
-        err := utils.ProcessTestResults(*resultsPath)
+		err := utils.ProcessTestResults(*resultsPath)
 		if err != nil {
 			log.Fatalf("ERROR: %s\n", err)
 		}
