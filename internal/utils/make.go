@@ -300,7 +300,7 @@ func MakeDelegatedCredential(config *Config, inCertPath string, inKeyPath string
 		} else if curveName == "P-521" {
 			parentSigAlg = SignatureECDSAWithP521AndSHA512
 		} else {
-			return 0, errors.New("public key unsupported\n")
+			return 0, errors.New("public key unsupported")
 		}
 	case ed25519.PublicKey:
 		parentSigAlg = SignatureEd25519
@@ -313,10 +313,10 @@ func MakeDelegatedCredential(config *Config, inCertPath string, inKeyPath string
 		} else if bits == 4096 {
 			parentSigAlg = SignatureRSAPKCS1WithSHA512
 		} else {
-			return 0, errors.New("error parsing RSA key.")
+			return 0, errors.New("error parsing RSA key")
 		}
 	default:
-		return 0, errors.New("public key unsupported\n")
+		return 0, errors.New("public key unsupported")
 	}
 	dc = append(dc, byte(parentSigAlg>>8), byte(parentSigAlg))
 
