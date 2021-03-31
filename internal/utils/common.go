@@ -27,7 +27,9 @@ type Config struct {
 	ValidFor  time.Duration
 
 	ForClient bool
-	ForDC     bool
+	EndEntity bool
+	// Note that ForDC implies EndEntity
+	ForDC bool
 
 	// SignatureAlgorithm defines the signature algorithm for certificates or delegated credentials
 	SignatureAlgorithm uint16

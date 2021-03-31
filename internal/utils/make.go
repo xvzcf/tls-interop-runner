@@ -14,7 +14,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -42,7 +41,7 @@ import (
 
 // MakeRootCertificate is based on code found in https://github.com/FiloSottile/mkcert
 func MakeRootCertificate(config *Config, outPath string, outKeyPath string) (uint16, error) {
-	signer, err := getSigner(config.rand(), config.SignatureAlgorithm, false)
+	signer, err := getSigner(config.rand(), config.SignatureAlgorithm, config.EndEntity || config.ForDC)
 	if err != nil {
 		return 0, err
 	}
@@ -124,7 +123,7 @@ func MakeRootCertificate(config *Config, outPath string, outKeyPath string) (uin
 
 // MakeIntermediateCertificate is based on code found in https://github.com/FiloSottile/mkcert
 func MakeIntermediateCertificate(config *Config, inCertPath string, inKeyPath string, outPath string, outKeyPath string) (uint16, error) {
-	signer, err := getSigner(config.rand(), config.SignatureAlgorithm, config.ForDC)
+	signer, err := getSigner(config.rand(), config.SignatureAlgorithm, config.EndEntity || config.ForDC)
 	if err != nil {
 		return 0, err
 	}
@@ -283,6 +282,7 @@ func MakeDelegatedCredential(config *Config, inCertPath string, inKeyPath string
 	if parentKeyDERBlock == nil || parentKeyDERBlock.Type != "PRIVATE KEY" {
 		return 0, errors.New("failed to read the key: unexpected content")
 	}
+
 	parentKey, err := x509.ParsePKCS8PrivateKey(parentKeyDERBlock.Bytes)
 	if err != nil {
 		return 0, err
@@ -300,23 +300,12 @@ func MakeDelegatedCredential(config *Config, inCertPath string, inKeyPath string
 		} else if curveName == "P-521" {
 			parentSigAlg = SignatureECDSAWithP521AndSHA512
 		} else {
-			return 0, errors.New("public key unsupported")
+			return 0, errors.New("error parsing ECDSA key")
 		}
 	case ed25519.PublicKey:
 		parentSigAlg = SignatureEd25519
-	case rsa.PublicKey:
-		bits := parentKey.(rsa.PrivateKey).N.BitLen()
-		if bits == 2048 {
-			parentSigAlg = SignatureRSAPKCS1WithSHA256
-		} else if bits == 3072 {
-			parentSigAlg = SignatureRSAPKCS1WithSHA384
-		} else if bits == 4096 {
-			parentSigAlg = SignatureRSAPKCS1WithSHA512
-		} else {
-			return 0, errors.New("error parsing RSA key")
-		}
 	default:
-		return 0, errors.New("public key unsupported")
+		return 0, errors.New("unsupported parent certificate key type")
 	}
 	dc = append(dc, byte(parentSigAlg>>8), byte(parentSigAlg))
 
@@ -332,6 +321,7 @@ func MakeDelegatedCredential(config *Config, inCertPath string, inKeyPath string
 	messageToSign = append(messageToSign, parentCertDERBlock.Bytes...)
 	messageToSign = append(messageToSign, dc...)
 
+	// The last argument to getSigner is ignored since parentSigAlg won't be 0
 	parentSigner, err := getSigner(config.rand(), parentSigAlg, false)
 	if err != nil {
 		return 0, err

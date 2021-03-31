@@ -15,6 +15,7 @@ import (
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rsa"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -92,6 +93,8 @@ func (e *Signer) SignWithKey(key crypto.PrivateKey, msg []byte) ([]byte, error) 
 		h := e.hash.New()
 		h.Write(msg)
 		digest = h.Sum(nil)
+	} else {
+		digest = msg
 	}
 
 	var sig []byte
@@ -105,36 +108,31 @@ func (e *Signer) SignWithKey(key crypto.PrivateKey, msg []byte) ([]byte, error) 
 		}
 	case ed25519.PrivateKey:
 		opts := crypto.SignerOpts(e.hash)
-		sig, err = sk.Sign(e.rand, msg, opts)
+		sig, err = sk.Sign(e.rand, digest, opts)
 		if err != nil {
 			return nil, err
 		}
-	case rsa.PrivateKey:
-		if e.signatureType == SignatureTypeRSAPKCS1 {
-			opts := crypto.SignerOpts(e.hash)
-			sig, err = sk.Sign(e.rand, msg, opts)
-		} else {
-			opts := &rsa.PSSOptions{Hash: e.hash}
-			sig, err = sk.Sign(e.rand, msg, opts)
-		}
+	case *rsa.PrivateKey:
+		// We currently only support PKCS1
+		opts := crypto.SignerOpts(e.hash)
+		sig, err = sk.Sign(e.rand, digest, opts)
 		if err != nil {
 			return nil, err
 		}
 	default:
-		return nil, fmt.Errorf("unsupported key type")
+		return nil, errors.New("signWithKey: unsupported key type")
 	}
 
 	return sig, nil
 }
 
-// TODO(claucece): as this is used beyond DCs, it needs to support all the other algos.
-func getSigner(randReader io.Reader, sigAlg uint16, selectValidDCAlg bool) (*Signer, error) {
+func getSigner(randReader io.Reader, sigAlg uint16, selectValidEndEntityAlg bool) (*Signer, error) {
 	if sigAlg == 0 { // Choose one at random
 		sigAlgList := []uint16{SignatureECDSAWithP256AndSHA256,
 			SignatureECDSAWithP384AndSHA384,
 			SignatureECDSAWithP521AndSHA512,
 			SignatureEd25519}
-		if !selectValidDCAlg {
+		if !selectValidEndEntityAlg {
 			sigAlgList = append(sigAlgList,
 				[]uint16{SignatureRSAPKCS1WithMD5,
 					SignatureRSAPKCS1WithSHA1,
@@ -164,11 +162,11 @@ func getSigner(randReader io.Reader, sigAlg uint16, selectValidDCAlg bool) (*Sig
 	case SignatureRSAPKCS1WithSHA1:
 		return &Signer{SignatureRSAPKCS1WithSHA1, SignatureTypeRSAPKCS1, randReader, crypto.SHA1, nil, nil, 2048}, nil
 	case SignatureRSAPKCS1WithSHA256:
-		return &Signer{SignatureRSAPKCS1WithSHA256, SignatureTypeRSAPKCS1, randReader, crypto.SHA1, nil, nil, 2048}, nil
+		return &Signer{SignatureRSAPKCS1WithSHA256, SignatureTypeRSAPKCS1, randReader, crypto.SHA256, nil, nil, 2048}, nil
 	case SignatureRSAPKCS1WithSHA384:
-		return &Signer{SignatureRSAPKCS1WithSHA384, SignatureTypeRSAPKCS1, randReader, crypto.SHA1, nil, nil, 3072}, nil
+		return &Signer{SignatureRSAPKCS1WithSHA384, SignatureTypeRSAPKCS1, randReader, crypto.SHA384, nil, nil, 3072}, nil
 	case SignatureRSAPKCS1WithSHA512:
-		return &Signer{SignatureRSAPKCS1WithSHA512, SignatureTypeRSAPKCS1, randReader, crypto.SHA1, nil, nil, 4096}, nil
+		return &Signer{SignatureRSAPKCS1WithSHA512, SignatureTypeRSAPKCS1, randReader, crypto.SHA512, nil, nil, 4096}, nil
 	}
 
 	return nil, fmt.Errorf("unsupported signature algorithm %04x", sigAlg)
