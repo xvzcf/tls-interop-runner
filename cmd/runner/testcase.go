@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -18,6 +19,15 @@ import (
 	"github.com/xvzcf/tls-interop-runner/internal/pcap"
 	"github.com/xvzcf/tls-interop-runner/internal/utils"
 )
+
+type errorWithFnName struct {
+	err    string
+	fnName string
+}
+
+func (e *errorWithFnName) Error() string {
+	return fmt.Sprintf("%s(): %s", e.fnName, e.err)
+}
 
 func waitWithTimeout(cmd *exec.Cmd, timeout time.Duration) error {
 	done := make(chan error)
@@ -39,32 +49,46 @@ func waitWithTimeout(cmd *exec.Cmd, timeout time.Duration) error {
 	}
 }
 
-type testCase interface {
-	setup() error
-	run(client endpoint, server endpoint) error
-	verify() error
-}
+type resultType uint
 
-type testError struct {
-	err         string
-	funcName    string
-	unsupported bool
-}
+const (
+	resultError       resultType = iota
+	resultFailure     resultType = iota
+	resultSuccess     resultType = iota
+	resultUnsupported resultType = iota
+)
 
-func (e *testError) Error() string {
-	if e.unsupported {
-		return fmt.Sprintf("Unsupported,%s(): %s", e.funcName, e.err)
+func (rt resultType) String() string {
+	switch rt {
+	case resultError:
+		return "Error"
+	case resultFailure:
+		return "Failure"
+	case resultSuccess:
+		return "Success"
+	case resultUnsupported:
+		return "Skipped"
+	default:
+		return ""
 	}
-	return fmt.Sprintf("Failure,%s(): %s", e.funcName, e.err)
 }
 
-type testCaseDC struct {
+type testcase interface {
+	setup(verbose bool) error
+	run(client endpoint, server endpoint) (resultType, error)
+	verify() (resultType, error)
+	teardown(moveOutputs bool) error
+}
+
+type testcaseDC struct {
 	name      string
 	timeout   time.Duration
 	outputDir string
+	logger    *log.Logger
+	logFile   *os.File
 }
 
-func (t *testCaseDC) setup() error {
+func (t *testcaseDC) setup(verbose bool) error {
 	err := os.MkdirAll(testInputsDir, os.ModePerm)
 	if err != nil {
 		return err
@@ -77,33 +101,42 @@ func (t *testCaseDC) setup() error {
 	if err != nil {
 		return err
 	}
+	runLog, err := os.Create(filepath.Join(testOutputsDir, "run-log.txt"))
+	if err != nil {
+		runLog.Close()
+		return err
+	}
+	if verbose {
+		t.logger = log.New(io.MultiWriter(os.Stdout, runLog),
+			"",
+			log.Ldate|log.Ltime|log.Lshortfile)
+	} else {
+		t.logger = log.New(io.Writer(runLog),
+			"",
+			log.Ldate|log.Ltime|log.Lshortfile)
+	}
 
-	var inputParams strings.Builder
-
-	rootSignatureAlgorithm := utils.SignatureECDSAWithP521AndSHA512
-	err = utils.MakeRootCertificate(
+	rootSignatureAlgorithm, err := utils.MakeRootCertificate(
 		&utils.Config{
-			Hostnames:          []string{"root.com"},
-			ValidFrom:          time.Now(),
-			ValidFor:           365 * 25 * time.Hour,
-			SignatureAlgorithm: rootSignatureAlgorithm,
+			Hostnames: []string{"root.com"},
+			ValidFrom: time.Now(),
+			ValidFor:  365 * 25 * time.Hour,
 		},
 		filepath.Join(testInputsDir, "root.crt"),
 		filepath.Join(testInputsDir, "root.key"),
 	)
 	if err != nil {
+		runLog.Close()
 		return err
 	}
-	inputParams.WriteString(fmt.Sprintf("Root certificate algorithm: 0x%X\n", rootSignatureAlgorithm))
+	t.logger.Printf("Root certificate algorithm: 0x%X\n", rootSignatureAlgorithm)
 
-	intermediateSignatureAlgorithm := utils.SignatureECDSAWithP256AndSHA256
-	err = utils.MakeIntermediateCertificate(
+	intermediateSignatureAlgorithm, err := utils.MakeIntermediateCertificate(
 		&utils.Config{
-			Hostnames:          []string{"example.com"},
-			ValidFrom:          time.Now(),
-			ValidFor:           365 * 25 * time.Hour,
-			SignatureAlgorithm: intermediateSignatureAlgorithm,
-			ForDC:              true,
+			Hostnames: []string{"example.com"},
+			ValidFrom: time.Now(),
+			ValidFor:  365 * 25 * time.Hour,
+			ForDC:     true,
 		},
 		filepath.Join(testInputsDir, "root.crt"),
 		filepath.Join(testInputsDir, "root.key"),
@@ -111,43 +144,32 @@ func (t *testCaseDC) setup() error {
 		filepath.Join(testInputsDir, "example.key"),
 	)
 	if err != nil {
+		runLog.Close()
 		return err
 	}
-	inputParams.WriteString(fmt.Sprintf("Intermediate certificate algorithm: 0x%X\n", intermediateSignatureAlgorithm))
+	t.logger.Printf("Intermediate certificate algorithm: 0x%X\n", intermediateSignatureAlgorithm)
 
-	dcAlgorithm := utils.SignatureECDSAWithP256AndSHA256
 	dcValidFor := 24 * time.Hour
-	err = utils.MakeDelegatedCredential(
+	dcAlgorithm, err := utils.MakeDelegatedCredential(
 		&utils.Config{
-			ValidFor:           dcValidFor,
-			SignatureAlgorithm: dcAlgorithm,
+			ValidFor: dcValidFor,
 		},
-		&utils.Config{},
 		filepath.Join(testInputsDir, "example.crt"),
 		filepath.Join(testInputsDir, "example.key"),
 		filepath.Join(testInputsDir, "dc.txt"),
 	)
 	if err != nil {
+		runLog.Close()
 		return err
 	}
-	inputParams.WriteString(fmt.Sprintf("Delegated credential algorithm: 0x%X\n", intermediateSignatureAlgorithm))
-	inputParams.WriteString(fmt.Sprintf("DC valid for: %v\n", dcValidFor))
+	t.logger.Printf("Delegated credential algorithm: 0x%X\n", dcAlgorithm)
+	t.logger.Printf("DC valid for: %v\n", dcValidFor)
 
-	inputParamsLog, err := os.Create(filepath.Join(testOutputsDir, "input-params.txt"))
-	if err != nil {
-		return err
-	}
-	defer inputParamsLog.Close()
-
-	_, err = inputParamsLog.WriteString(inputParams.String())
-	if err != nil {
-		return err
-	}
-
+	t.logFile = runLog
 	return nil
 }
 
-func (t *testCaseDC) run(client endpoint, server endpoint) error {
+func (t *testcaseDC) run(client endpoint, server endpoint) (result resultType, err error) {
 	pc, _, _, _ := runtime.Caller(0)
 	fn := runtime.FuncForPC(pc)
 
@@ -160,81 +182,103 @@ func (t *testCaseDC) run(client endpoint, server endpoint) error {
 	env = append(env, fmt.Sprintf("SERVER=%s", server.name))
 	env = append(env, fmt.Sprintf("CLIENT=%s", client.name))
 	env = append(env, fmt.Sprintf("TESTCASE=%s", t.name))
-
 	// SERVER_SRC and CLIENT_SRC should not be needed, since the images
-	// should be built and tagged by this point. They're just set to avoid
+	// should be built and tagged by this point. They're just set to suppress
 	// unset variable warnings by docker-compose.
 	env = append(env, "SERVER_SRC=\"\"")
 	env = append(env, "CLIENT_SRC=\"\"")
-
 	cmd.Env = env
 
 	var cmdOut bytes.Buffer
 	cmd.Stdout = &cmdOut
 	cmd.Stderr = &cmdOut
 
-	testStatusFile, err := os.Create(filepath.Join(testOutputsDir, "test.txt"))
-	if err != nil {
-		return &testError{err: fmt.Sprintf("os.Create failed: %s", err), funcName: fn.Name()}
-	}
-
 	err = cmd.Start()
 	if err != nil {
-		_, _ = testStatusFile.WriteString(fmt.Sprintf("%s,%s,%s,%s", client.name, server.name, t.name, "error"))
-		return &testError{err: fmt.Sprintf("docker-compose up start(): %s", err), funcName: fn.Name()}
+		err = &errorWithFnName{err: err.Error(), fnName: fn.Name()}
+		result = resultError
+		goto runUnsuccessful
 	}
 
 	err = waitWithTimeout(cmd, t.timeout)
 	if err != nil {
 		if strings.Contains(err.Error(), "exit status 64") {
-			_, _ = testStatusFile.WriteString(fmt.Sprintf("%s,%s,%s,%s", client.name, server.name, t.name, "skipped"))
-			return &testError{err: fmt.Sprintf("docker-compose up: %s", err), funcName: fn.Name(), unsupported: true}
+			err = &errorWithFnName{err: err.Error(), fnName: fn.Name()}
+			result = resultUnsupported
+			goto runUnsuccessful
 		}
-		_, _ = testStatusFile.WriteString(fmt.Sprintf("%s,%s,%s,%s", client.name, server.name, t.name, "failed"))
-		return &testError{err: fmt.Sprintf("docker-compose up: %s", err), funcName: fn.Name()}
-	}
-	if *verboseMode {
-		log.Println(cmdOut.String())
+		err = &errorWithFnName{err: err.Error(), fnName: fn.Name()}
+		result = resultFailure
+		goto runUnsuccessful
 	}
 
-	_, _ = testStatusFile.WriteString(fmt.Sprintf("%s,%s,%s,%s", client.name, server.name, t.name, "success"))
-	runLog, err := os.Create(filepath.Join(testOutputsDir, "run.txt"))
-	if err != nil {
-		return &testError{err: fmt.Sprintf("os.Create failed: %s", err), funcName: fn.Name()}
-	}
-	_, err = runLog.WriteString(cmdOut.String())
-	if err != nil {
-		return &testError{err: fmt.Sprintf("WriteString failed: %s", err), funcName: fn.Name()}
-	}
+	t.logger.Print(cmdOut.String())
+	t.logger.Printf("%s completed without error.\n", fn.Name())
+	return resultSuccess, nil
 
-	return nil
+runUnsuccessful:
+	t.logger.Println(cmdOut.String())
+	t.logger.Println(err)
+	return result, err
 }
 
-func (t *testCaseDC) verify() error {
+func (t *testcaseDC) verify() (resultType, error) {
 	pc, _, _, _ := runtime.Caller(0)
 	fn := runtime.FuncForPC(pc)
 
 	err := pcap.FindTshark()
 	if err != nil {
-		return &testError{err: fmt.Sprintf("tshark not found: %s", err), funcName: fn.Name()}
+		err = &errorWithFnName{err: err.Error(), fnName: fn.Name()}
+		t.logger.Println(err)
+		return resultError, err
 	}
 
 	pcapPath := filepath.Join(testOutputsDir, "client_node_trace.pcap")
 	keylogPath := filepath.Join(testOutputsDir, "client_keylog")
 	transcript, err := pcap.Parse(pcapPath, keylogPath)
 	if err != nil {
-		return &testError{err: fmt.Sprintf("could not parse pcap: %s", err), funcName: fn.Name()}
+		err = &errorWithFnName{err: err.Error(), fnName: fn.Name()}
+		t.logger.Println(err)
+		return resultFailure, err
 	}
 
 	err = pcap.Validate(transcript, t.name)
 	if err != nil {
-		return &testError{err: fmt.Sprintf("could not validate pcap: %s", err), funcName: fn.Name()}
+		err = &errorWithFnName{err: err.Error(), fnName: fn.Name()}
+		t.logger.Println(err)
+		return resultFailure, err
+	}
+
+	t.logger.Printf("%s completed without error.\n", fn.Name())
+	return resultSuccess, nil
+}
+
+func (t *testcaseDC) teardown(moveOutputs bool) error {
+	pc, _, _, _ := runtime.Caller(0)
+	fn := runtime.FuncForPC(pc)
+
+	t.logFile.Close()
+
+	if moveOutputs {
+		destDir := filepath.Join("generated", fmt.Sprintf("%s-out", t.name))
+		err := os.RemoveAll(destDir)
+		if err != nil {
+			err = &errorWithFnName{err: err.Error(), fnName: fn.Name()}
+			t.logger.Println(err)
+			return err
+		}
+		err = os.Rename(testOutputsDir, destDir)
+		if err != nil {
+			err = &errorWithFnName{err: err.Error(), fnName: fn.Name()}
+			t.logger.Println(err)
+			return err
+		}
 	}
 	return nil
 }
 
-var testCases = map[string]testCase{
-	"dc": &testCaseDC{
+var testcases = map[string]testcase{
+	"dc": &testcaseDC{
 		name:    "dc",
 		timeout: 100 * time.Second},
 }

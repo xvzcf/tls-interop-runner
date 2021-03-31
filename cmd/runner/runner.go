@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -25,22 +26,21 @@ const usage = `Usage:
 var testInputsDir = filepath.Join("generated", "test-inputs")
 var testOutputsDir = filepath.Join("generated", "test-outputs")
 
-var verboseMode = flag.Bool("verbose", false, "")
-
 func main() {
-	log.SetFlags(0)
 	var (
 		clientName           = flag.String("client", "", "")
 		serverName           = flag.String("server", "", "")
-		testCaseName         = flag.String("testcase", "", "")
-		buildServices        = flag.Bool("build", false, "")
+		testcaseName         = flag.String("testcase", "", "")
+		buildEndpoints       = flag.Bool("build", false, "")
 		runAllTests          = flag.Bool("alltestcases", false, "")
 		listInteropClients   = flag.Bool("list-interop-clients", false, "")
 		listInteropServers   = flag.Bool("list-interop-servers", false, "")
 		listInteropEndpoints = flag.Bool("list-interop-endpoints", false, "")
+		verbose              = flag.Bool("verbose", false, "")
 		help                 = flag.Bool("help", false, "")
 	)
 	flag.Parse()
+
 	if *help {
 		fmt.Print(usage)
 	} else if *listInteropClients {
@@ -70,93 +70,136 @@ func main() {
 		}
 		jsonOut, _ := json.Marshal(endpointNames)
 		fmt.Print(string(jsonOut))
-	} else if *clientName != "" && *serverName != "" && (*buildServices || *runAllTests || *testCaseName != "") {
+	} else if *clientName != "" && *serverName != "" && (*buildEndpoints || *runAllTests || *testcaseName != "") {
 		var client, server endpoint
 		var found bool
 		if client, found = endpoints[*clientName]; !found {
-			log.Fatalf("%s not found.", *clientName)
+			fmt.Printf("%s not found.\n", *clientName)
+			os.Exit(1)
 		} else if !client.client {
-			log.Fatalf("%s cannot be run as a client.", *clientName)
+			fmt.Printf("%s cannot be run as a client.\n", *clientName)
+			os.Exit(1)
 		}
 		if server, found = endpoints[*serverName]; !found {
-			log.Fatalf("%s not found.", *serverName)
+			fmt.Printf("%s not found.\n", *serverName)
 		} else if !server.server {
-			log.Fatalf("%s cannot be run as a client.", *serverName)
-		}
-
-		if *buildServices {
-			log.Printf("Building %s client and %s server.\n", client.name, server.name)
-			cmd := exec.Command("docker-compose", "build")
-			env := os.Environ()
-			if client.regression {
-				env = append(env, "CLIENT_SRC=regression-endpoints")
-			} else {
-				env = append(env, "CLIENT_SRC=impl-endpoints")
-			}
-			env = append(env, fmt.Sprintf("CLIENT=%s", client.name))
-			if server.regression {
-				env = append(env, "SERVER_SRC=regression-endpoints")
-			} else {
-				env = append(env, "SERVER_SRC=impl-endpoints")
-			}
-			env = append(env, fmt.Sprintf("SERVER=%s", server.name))
-			cmd.Env = env
-			err := cmd.Run()
-			if err != nil {
-				log.Fatalf("docker-compose build: %s", err)
-			}
-			log.Println("Done.")
+			fmt.Printf("%s cannot be run as a client.\n", *serverName)
+			os.Exit(1)
 		}
 
 		if *runAllTests {
-			for name, t := range testCases {
-				err := t.setup()
+			if *buildEndpoints {
+				err := doBuildEndpoints(client, server, *verbose)
 				if err != nil {
-					log.Fatal("Error generating test inputs.")
-				}
-				fmt.Printf("client=%s,server=%s,", client.name, server.name)
-				err = t.run(client, server)
-				if err != nil {
-					log.Println(err)
-					goto moveOutputs
-				}
-				err = t.verify()
-				if err != nil {
-					log.Println(err)
-					goto moveOutputs
-				}
-				log.Println("Success")
-			moveOutputs:
-				destDir := filepath.Join("generated", fmt.Sprintf("%s-out", name))
-				err = os.RemoveAll(destDir)
-				if err != nil {
-					log.Fatal(err)
-				}
-				err = os.Rename(testOutputsDir, destDir)
-				if err != nil {
-					log.Fatal(err)
+					fmt.Println(err)
+					os.Exit(1)
 				}
 			}
-		} else if *testCaseName != "" {
-			if t, ok := testCases[*testCaseName]; ok {
-				err := t.setup()
+			for name, t := range testcases {
+				err := doTestcase(t, name, client, server, *verbose, true)
 				if err != nil {
-					log.Fatal("Error generating test inputs.")
+					fmt.Println(err)
+					os.Exit(1)
 				}
-				err = t.run(client, server)
+			}
+		} else if *testcaseName != "" {
+			if t, ok := testcases[*testcaseName]; ok {
+				if *buildEndpoints {
+					err := doBuildEndpoints(client, server, *verbose)
+					if err != nil {
+						fmt.Println(err)
+						os.Exit(1)
+					}
+				}
+				err := doTestcase(t, *testcaseName, client, server, *verbose, false)
 				if err != nil {
-					log.Fatal(err.Error())
+					fmt.Println(err)
+					os.Exit(1)
 				}
-				err = t.verify()
-				if err != nil {
-					log.Fatal(err.Error())
-				}
-				log.Println("Success")
 			} else {
-				log.Fatalf("Testcase %s not found.\n", *testCaseName)
+				fmt.Printf("Testcase %s not found.\n", *testcaseName)
+				os.Exit(1)
 			}
 		}
 	} else {
 		fmt.Print(usage)
 	}
+}
+
+func doBuildEndpoints(client endpoint, server endpoint, verbose bool) error {
+	fmt.Printf("Building %s client and %s server.\n", client.name, server.name)
+
+	cmd := exec.Command("docker-compose", "build")
+	env := os.Environ()
+	if client.regression {
+		env = append(env, "CLIENT_SRC=regression-endpoints")
+	} else {
+		env = append(env, "CLIENT_SRC=impl-endpoints")
+	}
+	env = append(env, fmt.Sprintf("CLIENT=%s", client.name))
+	if server.regression {
+		env = append(env, "SERVER_SRC=regression-endpoints")
+	} else {
+		env = append(env, "SERVER_SRC=impl-endpoints")
+	}
+	env = append(env, fmt.Sprintf("SERVER=%s", server.name))
+	// TESTCASE is not needed at this point, and is just
+	// set to suppress unset variable warnings.
+	env = append(env, "TESTCASE=\"\"")
+	cmd.Env = env
+	if verbose {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("docker-compose build: %s", err)
+	}
+
+	fmt.Printf("Done.\n")
+	return nil
+}
+
+func doTestcase(t testcase, testcaseName string, client endpoint, server endpoint, verbose bool, allTestsMode bool) error {
+	var result resultType
+
+	err := t.setup(verbose)
+	if err != nil {
+		goto teardown
+	}
+
+	result, err = t.run(client, server)
+	if result != resultSuccess {
+		goto teardown
+	}
+
+	result, err = t.verify()
+	if result != resultSuccess {
+		goto teardown
+	}
+teardown:
+	testcaseError := err
+
+	testStatusFile, err := os.Create(filepath.Join(testOutputsDir, "test.txt"))
+	if err != nil {
+		return fmt.Errorf("error creating test status file: %s", err)
+	}
+	testStatusLogger := log.New(io.MultiWriter(os.Stdout, testStatusFile), "", 0)
+
+	if testcaseError != nil {
+		testStatusLogger.Printf("%s,%s,%s,%v,%s", client.name, server.name, testcaseName, result, testcaseError)
+	} else {
+		testStatusLogger.Printf("%s,%s,%s,%v", client.name, server.name, testcaseName, result)
+	}
+	testStatusFile.Close()
+
+	err = t.teardown(allTestsMode)
+	if err != nil {
+		return fmt.Errorf("Error tearing down: %s", err)
+	}
+
+	if !allTestsMode {
+		return testcaseError
+	}
+	return nil
 }
