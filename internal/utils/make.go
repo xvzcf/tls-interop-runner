@@ -31,13 +31,7 @@ import (
 	"path/filepath"
 )
 
-// TODO(xvzcf): When passed to x509.CreateCertificate, RSA keys will result in
-// an RSA-PKCS1 certificate being generated since we have no control over how
-// priv.(*crypto.Signer).Sign() is called in that function. This means we currently
-// cannot support RSA-PSS. x509.CreateCertificate also makes it hard to do
-// certificate fuzzing.
-// The solution might just be to reproduce the implementation of
-// x509.CreateCertificate here with appropriate modifications.
+// TODO(xvzcf): Support RSA-PSS and discuss how to approach fuzzing.
 
 // MakeRootCertificate is based on code found in https://github.com/FiloSottile/mkcert
 func MakeRootCertificate(config *Config, outPath string, outKeyPath string) (uint16, error) {
