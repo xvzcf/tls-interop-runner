@@ -107,13 +107,13 @@ func main() {
 				if *buildEndpoints {
 					err := doBuildEndpoints(client, server, *verbose)
 					if err != nil {
-						fmt.Println(err)
+						log.Printf("ERROR: %s", err.Error())
 						os.Exit(1)
 					}
 				}
 				err := doTestcase(t, *testcaseName, client, server, *verbose, false)
 				if err != nil {
-					fmt.Println(err)
+					log.Printf("ERROR: %s", err.Error())
 					os.Exit(1)
 				}
 			} else {
@@ -127,7 +127,7 @@ func main() {
 }
 
 func doBuildEndpoints(client endpoint, server endpoint, verbose bool) error {
-	fmt.Printf("Building %s client and %s server.\n", client.name, server.name)
+	log.Printf("Building %s client and %s server.\n", client.name, server.name)
 
 	cmd := exec.Command("docker-compose", "build")
 	env := os.Environ()
@@ -156,11 +156,12 @@ func doBuildEndpoints(client endpoint, server endpoint, verbose bool) error {
 		return fmt.Errorf("docker-compose build: %s", err)
 	}
 
-	fmt.Printf("Done.\n")
+	log.Printf("Building done.\n")
 	return nil
 }
 
 func doTestcase(t testcase, testcaseName string, client endpoint, server endpoint, verbose bool, allTestsMode bool) error {
+	log.Println("\nTesting: " + testcaseName)
 	var result resultType
 
 	err := t.setup(verbose)

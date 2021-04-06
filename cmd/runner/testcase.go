@@ -190,8 +190,9 @@ func (t *testcaseDC) run(client endpoint, server endpoint) (result resultType, e
 	cmd.Env = env
 
 	var cmdOut bytes.Buffer
+	var stderr bytes.Buffer
 	cmd.Stdout = &cmdOut
-	cmd.Stderr = &cmdOut
+	cmd.Stderr = &stderr
 
 	err = cmd.Start()
 	if err != nil {
@@ -212,13 +213,13 @@ func (t *testcaseDC) run(client endpoint, server endpoint) (result resultType, e
 		goto runUnsuccessful
 	}
 
-	t.logger.Print(cmdOut.String())
+	t.logger.Println("OUT: " + cmdOut.String())
 	t.logger.Printf("%s completed without error.\n", fn.Name())
 	return resultSuccess, nil
 
 runUnsuccessful:
-	t.logger.Println(cmdOut.String())
-	t.logger.Println(err)
+	t.logger.Println("OUT: " + cmdOut.String())
+	t.logger.Println("ERROR: " + fmt.Sprint(err) + ": " + stderr.String())
 	return result, err
 }
 
