@@ -33,11 +33,7 @@ class Listener {
   Listener &operator=(const Listener &) = delete;
 };
 
-bool VersionFromString(uint16_t *out_version, const std::string &version);
-
 void PrintConnectionInfo(BIO *bio, const SSL *ssl);
-
-bool SocketSetNonBlocking(int sock, bool is_non_blocking);
 
 // PrintSSLError prints information about the most recent SSL error to stderr.
 // |ssl_err| must be the output of |SSL_get_error| and the |SSL| object must be

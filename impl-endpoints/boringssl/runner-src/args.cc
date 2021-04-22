@@ -11,7 +11,6 @@
 
 #include "internal.h"
 
-
 bool ParseKeyValueArguments(std::map<std::string, std::string> *out_args,
                             const std::vector<std::string> &args,
                             const struct argument *templates) {
@@ -57,36 +56,5 @@ bool ParseKeyValueArguments(std::map<std::string, std::string> *out_args,
     }
   }
 
-  return true;
-}
-
-void PrintUsage(const struct argument *templates) {
-  for (size_t i = 0; templates[i].name[0] != 0; i++) {
-    const struct argument *templ = &templates[i];
-    fprintf(stderr, "%s\t%s\n", templ->name, templ->description);
-  }
-}
-
-bool GetUnsigned(unsigned *out, const std::string &arg_name,
-                 unsigned default_value,
-                 const std::map<std::string, std::string> &args) {
-  const auto &it = args.find(arg_name);
-  if (it == args.end()) {
-    *out = default_value;
-    return true;
-  }
-
-  const std::string &value = it->second;
-  if (value.empty()) {
-    return false;
-  }
-
-  char *endptr;
-  unsigned long int num = strtoul(value.c_str(), &endptr, 10);
-  if (*endptr || num > UINT_MAX) {
-    return false;
-  }
-
-  *out = num;
   return true;
 }

@@ -31,10 +31,6 @@ bool ParseKeyValueArguments(std::map<std::string, std::string> *out_args,
                             const std::vector<std::string> &args,
                             const struct argument *templates);
 
-bool GetUnsigned(unsigned *out, const std::string &arg_name,
-                 unsigned default_value,
-                 const std::map<std::string, std::string> &args);
-
 bool ReadAll(std::vector<uint8_t> *out, FILE *in);
 bool ReadDelegatedCredential(std::vector<uint8_t> *dc_out,
                              std::vector<uint8_t> *priv_out,

@@ -180,23 +180,6 @@ bool Listener::Accept(int *out_sock) {
   return *out_sock >= 0;
 }
 
-bool VersionFromString(uint16_t *out_version, const std::string &version) {
-  if (version == "tls1" || version == "tls1.0") {
-    *out_version = TLS1_VERSION;
-    return true;
-  } else if (version == "tls1.1") {
-    *out_version = TLS1_1_VERSION;
-    return true;
-  } else if (version == "tls1.2") {
-    *out_version = TLS1_2_VERSION;
-    return true;
-  } else if (version == "tls1.3") {
-    *out_version = TLS1_3_VERSION;
-    return true;
-  }
-  return false;
-}
-
 void PrintConnectionInfo(BIO *bio, const SSL *ssl) {
   const SSL_CIPHER *cipher = SSL_get_current_cipher(ssl);
 
@@ -263,99 +246,6 @@ void PrintConnectionInfo(BIO *bio, const SSL *ssl) {
     BIO_printf(bio, "\n");
   }
 }
-
-bool SocketSetNonBlocking(int sock, bool is_non_blocking) {
-  bool ok;
-
-  int flags = fcntl(sock, F_GETFL, 0);
-  if (flags < 0) {
-    return false;
-  }
-  if (is_non_blocking) {
-    flags |= O_NONBLOCK;
-  } else {
-    flags &= ~O_NONBLOCK;
-  }
-  ok = 0 == fcntl(sock, F_SETFL, flags);
-  if (!ok) {
-    PrintSocketError("Failed to set socket non-blocking");
-  }
-  return ok;
-}
-
-enum class StdinWait {
-  kStdinRead,
-  kSocketWrite,
-};
-
-// SocketWaiter abstracts waiting for either the socket or stdin to be readable
-// between Windows and POSIX.
-class SocketWaiter {
- public:
-  explicit SocketWaiter(int sock) : sock_(sock) {}
-  SocketWaiter(const SocketWaiter &) = delete;
-  SocketWaiter &operator=(const SocketWaiter &) = delete;
-
-  // Init initializes the SocketWaiter. It returns whether it succeeded.
-  bool Init() { return true; }
-
-  // Wait waits for at least on of the socket or stdin or be ready. On success,
-  // it sets |*socket_ready| and |*stdin_ready| to whether the respective
-  // objects are readable and returns true. On error, it returns false. stdin's
-  // readiness may either be the socket being writable or stdin being readable,
-  // depending on |stdin_wait|.
-  bool Wait(StdinWait stdin_wait, bool *socket_ready, bool *stdin_ready) {
-    *socket_ready = true;
-    *stdin_ready = false;
-
-    fd_set read_fds, write_fds;
-    FD_ZERO(&read_fds);
-    FD_ZERO(&write_fds);
-    if (stdin_wait == StdinWait::kSocketWrite) {
-      FD_SET(sock_, &write_fds);
-    } else if (stdin_open_) {
-      FD_SET(STDIN_FILENO, &read_fds);
-    }
-    FD_SET(sock_, &read_fds);
-    if (select(sock_ + 1, &read_fds, &write_fds, NULL, NULL) <= 0) {
-      perror("select");
-      return false;
-    }
-
-    if (FD_ISSET(STDIN_FILENO, &read_fds) || FD_ISSET(sock_, &write_fds)) {
-      *stdin_ready = true;
-    }
-    if (FD_ISSET(sock_, &read_fds)) {
-      *socket_ready = true;
-    }
-
-    return true;
-  }
-
-  // ReadStdin reads at most |max_out| bytes from stdin. On success, it writes
-  // them to |out| and sets |*out_len| to the number of bytes written. On error,
-  // it returns false. This method may only be called after |Wait| returned
-  // stdin was ready.
-  bool ReadStdin(void *out, size_t *out_len, size_t max_out) {
-    ssize_t n;
-    do {
-      n = read(STDIN_FILENO, out, max_out);
-    } while (n == -1 && errno == EINTR);
-    if (n <= 0) {
-      stdin_open_ = false;
-    }
-    if (n < 0) {
-      perror("read from stdin");
-      return false;
-    }
-    *out_len = static_cast<size_t>(n);
-    return true;
-  }
-
- private:
-  bool stdin_open_ = true;
-  int sock_;
-};
 
 void PrintSSLError(FILE *file, const char *msg, int ssl_err, int ret) {
   switch (ssl_err) {
