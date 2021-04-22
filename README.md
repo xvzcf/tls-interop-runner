@@ -27,15 +27,10 @@ make runner
 ```
 
 2. Tests are run with `docker-compose`, with the artifacts copied into a virtual
-volume. To run a test with, say, BoringSSL as server and Cloudflare-Go as client,
-you must first build the necessary docker images:
-```
-./bin/runner --client=boringssl --server=cloudflare-go --build
-```
-
-3. You're now ready to run tests. For example, to run the server-side delegated credential
-test:
+volume. To run a test with, say, Cloudflare-Go as server and Boringssl as client,
+you must first build the necessary docker images, and run the appropiate
+test (for example, the delegated credentials one):
 
 ```
-./bin/runner --client=cloudflare-go --server=boringssl --testcase=dc
+./bin/runner --client=cloudflare-go --server=boringssl --build --testcase=dc
 ```
