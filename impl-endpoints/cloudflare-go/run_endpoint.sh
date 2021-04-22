@@ -8,7 +8,7 @@ set -e
 sh /setup-routes.sh
 
 if [ "$ROLE" = "client" ]; then
-    runner -role=client -test=${TESTCASE}
+    runner -role=client -test="${TESTCASE}"
 else
-    runner -role=server -test=${TESTCASE}
+    runner -role=server -test="${TESTCASE}"
 fi

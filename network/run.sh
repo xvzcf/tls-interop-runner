@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # SPDX-FileCopyrightText: 2019 Jana Iyengar, Marten Seemann
 # SPDX-License-Identifier: Apache-2.0
@@ -22,7 +22,7 @@ ip6tables -A FORWARD -i eth1 -o eth0 -j DROP
 
 ./scratch/simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25 &
 
-PID=`jobs -p`
+PID=$(jobs -p)
 trap "kill -SIGINT $PID" INT
 trap "kill -SIGTERM $PID" TERM
 trap "kill -SIGKILL $PID" KILL

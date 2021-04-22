@@ -23,7 +23,7 @@ if [ "$TESTCASE" = "ech-accept" ] || [ "$TESTCASE" = "ech-reject" ]; then
     openssl pkcs12 -export -out nss_testdata/client-facing.pfx -name client-facing.com -inkey /test-inputs/client-facing.key -in /test-inputs/client-facing.crt -passout pass:"$P12_PASS"
 else
     echo "Test case not supported."
-    return true
+    return 64
 fi
 
 # Import certs and keys
