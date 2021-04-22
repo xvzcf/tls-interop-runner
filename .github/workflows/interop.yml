@@ -146,11 +146,11 @@ jobs:
         run: make runner && make util
         working-directory: go/src/github.com/${{ github.repository }}
       - name: Run tests
+        run: ./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --alltestcases || true
+        working-directory: go/src/github.com/${{ github.repository }}
+      - name: Upload test results if running on main branch
+        if: ${{ github.ref == 'refs/heads/main' }}
         env:
           TOKEN: ${{ secrets.RESULTSAPITOKEN }}
-        run: |
-          (./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --alltestcases || true)
-          (BEARER_TOKEN=$TOKEN ./bin/util -process-results -path=generated || true)
-          mkdir -p logs/${{ matrix.client }}/${{ matrix.server }}
-          mv generated/*-out logs/${{ matrix.client }}/${{ matrix.client }}/
+        run: env BEARER_TOKEN=$TOKEN ./bin/util -process-results -path=generated
         working-directory: go/src/github.com/${{ github.repository }}
