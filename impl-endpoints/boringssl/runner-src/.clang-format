@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2014 Google Inc.
+# SPDX-License-Identifier: ISC
+
 BasedOnStyle: Google
 MaxEmptyLinesToKeep: 3
 AllowShortIfStatementsOnASingleLine: false
