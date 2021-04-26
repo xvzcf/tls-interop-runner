@@ -130,13 +130,24 @@ func parseOutClientHello(raw map[string]interface{}, transcript *TLSTranscript) 
 		}
 	}
 
-	for _, val := range raw["tls_tls_handshake_extensions_supported_version"].([]interface{}) {
-		version, err := strconv.ParseUint(val.(string), 0, 16)
+	ext_supported_version := raw["tls_tls_handshake_extensions_supported_version"]
+	switch ext_supported_version.(type) {
+	case string:
+		version, err := strconv.ParseUint(ext_supported_version.(string), 0, 16)
 		if err != nil {
 			return err
 		}
-		transcript.ClientHello.supportedVersions = append(transcript.ClientHello.supportedVersions, uint16(version))
+		transcript.ClientHello.supportedVersions = []uint16{uint16(version)}
+	case []interface{}:
+		for _, val := range ext_supported_version.([]interface{}) {
+			version, err := strconv.ParseUint(val.(string), 0, 16)
+			if err != nil {
+				return err
+			}
+			transcript.ClientHello.supportedVersions = append(transcript.ClientHello.supportedVersions, uint16(version))
+		}
 	}
+
 	return nil
 }
 
