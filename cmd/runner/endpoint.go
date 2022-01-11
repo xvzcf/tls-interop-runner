@@ -23,10 +23,4 @@ var endpoints = map[string]endpoint{
 		client:     true,
 		server:     true,
 	},
-	"tls-attacker": {
-		name:       "tls-attacker",
-		regression: true,
-		client:     true,
-		server:     false,
-	},
 }

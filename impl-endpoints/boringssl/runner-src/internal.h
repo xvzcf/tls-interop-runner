@@ -32,9 +32,7 @@ bool ParseKeyValueArguments(std::map<std::string, std::string> *out_args,
                             const struct argument *templates);
 
 bool ReadAll(std::vector<uint8_t> *out, FILE *in);
-bool ReadDelegatedCredential(std::vector<uint8_t> *dc_out,
-                             std::vector<uint8_t> *priv_out,
-                             const char *filename);
+bool DecodeBase64(std::vector<uint8_t> *out, const std::vector<uint8_t> *in);
 
 unsigned int DoClient(std::string testcase);
 unsigned int DoServer(std::string testcase);

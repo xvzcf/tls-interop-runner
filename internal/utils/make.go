@@ -339,7 +339,7 @@ func MakeDelegatedCredential(config *Config, inCertPath string, inKeyPath string
 
 // MakeECHKey generates an ECH config and corresponding key, writing the key to
 // outKeyPath and the config to outPath. The config is encoded as an ECHConfigs
-// structure as specified by draft-ietf-tls-esni-09 (i.e., it is prefixed by
+// structure as specified by draft-ietf-tls-esni-13 (i.e., it is prefixed by
 // 16-bit integer that encodes its length). This is the format as it is consumed
 // by the client.
 func MakeECHKey(template ECHConfigTemplate, outPath, outKeyPath string) error {

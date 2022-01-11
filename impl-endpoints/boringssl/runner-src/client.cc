@@ -50,41 +50,6 @@ static bool DoConnection(SSL *ssl) {
 }
 
 unsigned int DoClient(std::string testcase) {
-  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
-
-  g_keylog_file = fopen(g_keylog_filename, "a");
-  if (g_keylog_file == nullptr) {
-    perror("fopen");
-    return 1;
-  }
-  SSL_CTX_set_keylog_callback(ctx.get(), KeyLogCallback);
-
-  if (testcase == "dc") {
-    if (!SSL_CTX_load_verify_locations(ctx.get(), "/test-inputs/root.crt",
-                                       nullptr)) {
-      fprintf(stderr, "Failed to load root certificates.\n");
-      ERR_print_errors_fp(stderr);
-      return 1;
-    }
-    SSL_CTX_set_verify(
-        ctx.get(), SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
-
-    bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
-    SSL_set_tlsext_host_name(ssl.get(), "example.com");
-    SSL_enable_delegated_credentials(ssl.get(), true);
-
-    if (!DoConnection(ssl.get())) {
-      return 1;
-    }
-
-    if (!SSL_delegated_credential_used_for_certificate_verify(ssl.get())) {
-      fprintf(stderr, "Delegated credential not used.\n");
-      return 1;
-    }
-
-    return 0;
-  } else {
-    fprintf(stderr, "Testcase unsupported.\n");
-    return 64;
-  }
+  fprintf(stderr, "Testcase unsupported.\n");
+  return 64;
 }

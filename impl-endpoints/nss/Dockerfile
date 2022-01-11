@@ -11,6 +11,7 @@ RUN apt-get update \
     mercurial \
     ninja-build \
     zlib1g-dev \
+    python \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get autoremove -y && apt-get clean -y
 
@@ -22,7 +23,7 @@ RUN cd /build \
    && hg clone https://hg.mozilla.org/projects/nspr \
         --rev b09175587dad2bfb923ec87250ac80461f620577 \
    && hg clone https://hg.mozilla.org/projects/nss \
-        --rev 38a91427d65fffd0d7f7d2b6d0bcee7dc8b77a37 \
+        --rev 6796ae14d413405b09d0e90f8fc206eb9ff14864 \
    && cd nss \
    && ./build.sh -Denable_draft_hpke=1 \
    && cd /
