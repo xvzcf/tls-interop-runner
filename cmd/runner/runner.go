@@ -131,19 +131,14 @@ func doBuildEndpoints(client endpoint, server endpoint, verbose bool) error {
 
 	cmd := exec.Command("docker-compose", "build")
 	env := os.Environ()
-	if client.regression {
-		env = append(env, "CLIENT_SRC=regression-endpoints")
-	} else {
-		env = append(env, "CLIENT_SRC=impl-endpoints")
-	}
+
+    env = append(env, "CLIENT_SRC=endpoints")
 	env = append(env, fmt.Sprintf("CLIENT=%s", client.name))
-	if server.regression {
-		env = append(env, "SERVER_SRC=regression-endpoints")
-	} else {
-		env = append(env, "SERVER_SRC=impl-endpoints")
-	}
+
+	env = append(env, "SERVER_SRC=endpoints")
 	env = append(env, fmt.Sprintf("SERVER=%s", server.name))
-	// TESTCASE is not needed at this point, and is just
+
+    // TESTCASE is not needed at this point, and is just
 	// set to suppress unset variable warnings.
 	env = append(env, "TESTCASE=\"\"")
 	cmd.Env = env

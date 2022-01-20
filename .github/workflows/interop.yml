@@ -86,7 +86,7 @@ jobs:
         with:
           fetch-depth: 1
       - name: Run docker build
-        run: docker build impl-endpoints/${{ matrix.endpoint }} --tag tls-endpoint-${{ matrix.endpoint }}
+        run: docker build endpoints/${{ matrix.endpoint }} --tag tls-endpoint-${{ matrix.endpoint }}
       - name: Save Docker image
         run: |
           docker save tls-endpoint-${{ matrix.endpoint }} | gzip --best > tls-endpoint-${{ matrix.endpoint }}.tar.gz
