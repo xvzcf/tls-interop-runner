@@ -63,8 +63,8 @@ unsigned int DoServer(std::string testcase) {
   SSL_CTX_set_keylog_callback(ctx.get(), KeyLogCallback);
 
   if (testcase == "ech-accept") {
-    if (!SSL_CTX_use_PrivateKey_file(
-            ctx.get(), "/test-inputs/example.key", SSL_FILETYPE_PEM)) {
+    if (!SSL_CTX_use_PrivateKey_file(ctx.get(), "/test-inputs/example.key",
+                                     SSL_FILETYPE_PEM)) {
       fprintf(stderr, "Failed to load private key.\n");
       return 1;
     }
@@ -122,6 +122,46 @@ unsigned int DoServer(std::string testcase) {
 
     if (!DoListen(ssl.get())) {
       ERR_print_errors_fp(stderr);
+      return 1;
+    }
+    return 0;
+  } else if (testcase == "dc") {
+    if (!SSL_CTX_use_PrivateKey_file(ctx.get(), "/test-inputs/example.key",
+                                     SSL_FILETYPE_PEM)) {
+      fprintf(stderr, "Failed to load private key.\n");
+      return 1;
+    }
+    if (!SSL_CTX_use_certificate_chain_file(ctx.get(),
+                                            "/test-inputs/example.crt")) {
+      fprintf(stderr, "Failed to load cert.\n");
+      return 1;
+    }
+    bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
+    SSL_set_tlsext_host_name(ssl.get(), "example.com");
+
+    std::vector<uint8_t> dc, dc_priv_raw;
+    if (!ReadDelegatedCredential(&dc, &dc_priv_raw, "/test-inputs/dc.txt")) {
+      return false;
+    }
+    CBS dc_cbs(bssl::Span<const uint8_t>(dc.data(), dc.size()));
+    CBS pkcs8_cbs(
+        bssl::Span<const uint8_t>(dc_priv_raw.data(), dc_priv_raw.size()));
+
+    bssl::UniquePtr<EVP_PKEY> dc_priv(EVP_parse_private_key(&pkcs8_cbs));
+    if (!dc_priv) {
+      fprintf(stderr, "failed to parse delegated credential private key.\n");
+      return false;
+    }
+
+    bssl::UniquePtr<CRYPTO_BUFFER> dc_buf(
+        CRYPTO_BUFFER_new_from_CBS(&dc_cbs, nullptr));
+    if (!SSL_set1_delegated_credential(ssl.get(), dc_buf.get(), dc_priv.get(),
+                                       nullptr)) {
+      fprintf(stderr, "SSL_set1_delegated_credential failed.\n");
+      return false;
+    }
+
+    if (!DoListen(ssl.get())) {
       return 1;
     }
     return 0;
