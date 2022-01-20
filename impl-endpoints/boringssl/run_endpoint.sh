@@ -7,6 +7,10 @@ set -e
 
 sh /setup-routes.sh
 
+if [ "$TESTCASE" = "ech-accept" ]; then
+    python3 /ech_key_converter.py
+fi
+
 if [ "$ROLE" = "client" ]; then
     runner -as-client -testcase "${TESTCASE}"
 else

@@ -29,8 +29,8 @@ make runner
 2. Tests are run with `docker-compose`, with the artifacts copied into a virtual
 volume. To run a test with, say, Cloudflare-Go as server and Boringssl as client,
 you must first build the necessary docker images, and run the appropiate
-test (for example, the delegated credentials one):
+test (for example, `ech-accept`):
 
 ```
-./bin/runner --client=cloudflare-go --server=boringssl --build --testcase=dc
+./bin/runner --client=cloudflare-go --server=boringssl --build --testcase=ech-accept
 ```

@@ -161,7 +161,7 @@ func doBuildEndpoints(client endpoint, server endpoint, verbose bool) error {
 }
 
 func doTestcase(t testcase, testcaseName string, client endpoint, server endpoint, verbose bool, allTestsMode bool) error {
-	log.Println("\nTesting: " + testcaseName)
+	log.Println("Testing: " + testcaseName)
 	var result resultType
 
 	err := t.setup(verbose)

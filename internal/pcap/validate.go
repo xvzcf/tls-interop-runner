@@ -28,6 +28,16 @@ func Validate(transcript TLSTranscript, testCase string) error {
 			}
 		}
 		return errors.New("ClientHello: supported_versions does not include TLS 1.3")
+	case "ech-accept":
+		if transcript.ClientHello.version != 0x0303 {
+			return errors.New("ClientHello: legacy_version is not TLS 1.2")
+		}
+		for _, v := range transcript.ClientHello.supportedVersions {
+			if v == 0x0304 {
+				return nil
+			}
+		}
+		return errors.New("ClientHello: supported_versions does not include TLS 1.3")
 	}
 	return nil
 }

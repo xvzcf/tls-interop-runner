@@ -8,7 +8,7 @@ RUN apt-get update && \
 RUN git clone https://github.com/cloudflare/go /cf
 
 WORKDIR /cf/src
-RUN git checkout 5ef1b90573f8742b763b7e65a43ce7fa20e37bb4
+RUN git checkout 7d4ce7c5377c6bf6ff5977d4734d6f6f2a10ccdb
 RUN ./make.bash
 
 FROM ubuntu:20.04
