@@ -21,11 +21,11 @@ WORKDIR /build
 # Clone and build. Output in /nss/dist/Debug/.
 RUN cd /build \
    && hg clone https://hg.mozilla.org/projects/nspr \
-        --rev b09175587dad2bfb923ec87250ac80461f620577 \
+        --rev c75b4e36b7e8134aac9f3058411aa0d4c2d55094 \
    && hg clone https://hg.mozilla.org/projects/nss \
-        --rev 6796ae14d413405b09d0e90f8fc206eb9ff14864 \
+        --rev dbf0b29b6c05b73fceb3c95e1da0725e029dbfdb \
    && cd nss \
-   && ./build.sh -Denable_draft_hpke=1 \
+   && ./build.sh \
    && cd /
 
 FROM ubuntu:20.04
@@ -47,7 +47,6 @@ RUN apt-get update && \
 
 COPY ech_key_converter.py /
 
-COPY run_endpoint.sh /run_endpoint.sh
-RUN chmod +x /run_endpoint.sh
+COPY run-endpoint.sh /
 
-ENTRYPOINT [ "/run_endpoint.sh" ]
+ENTRYPOINT [ "sh", "/run-endpoint.sh" ]

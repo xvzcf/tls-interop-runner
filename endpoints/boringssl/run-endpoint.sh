@@ -12,7 +12,7 @@ if [ "$TESTCASE" = "ech-accept" ]; then
 fi
 
 if [ "$ROLE" = "client" ]; then
-    runner -as-client -testcase "${TESTCASE}"
+    /runner -as-client -testcase "${TESTCASE}"
 else
-    runner -testcase "${TESTCASE}"
+    /runner -testcase "${TESTCASE}"
 fi

@@ -22,7 +22,6 @@ COPY runner.go config.go /
 
 RUN /cf/bin/go build -o /usr/bin/runner runner.go config.go
 
-COPY run_endpoint.sh /
-RUN chmod +x /run_endpoint.sh
+COPY run-endpoint.sh /
 
-ENTRYPOINT [ "/run_endpoint.sh" ]
+ENTRYPOINT [ "sh", "/run-endpoint.sh" ]

@@ -14,7 +14,7 @@ Runner](https://github.com/marten-seemann/quic-interop-runner).
 
 - Tshark >= 3.2.0 present in the PATH
 - Go >= 1.15
-- A sufficiently recent version of `docker` and `docker-compose`
+- `docker` >= v20.10.17 and `docker-compose` >= v2.6.0
 
 ## Quickstart
 

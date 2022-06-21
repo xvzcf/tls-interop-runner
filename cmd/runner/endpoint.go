@@ -4,23 +4,25 @@
 package main
 
 type endpoint struct {
-	name       string
-	regression bool
-	client     bool
-	server     bool
+	name   string
+	client bool
+	server bool
 }
 
 var endpoints = map[string]endpoint{
 	"boringssl": {
-		name:       "boringssl",
-		regression: false,
-		client:     true,
-		server:     true,
+		name:   "boringssl",
+		client: true,
+		server: true,
 	},
 	"cloudflare-go": {
-		name:       "cloudflare-go",
-		regression: false,
-		client:     true,
-		server:     true,
+		name:   "cloudflare-go",
+		client: true,
+		server: true,
+	},
+	"nss": {
+		name:   "nss",
+		client: true,
+		server: true,
 	},
 }

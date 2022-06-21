@@ -23,12 +23,10 @@ FROM ubuntu:20.04
 RUN apt-get update && \
     apt-get install -y net-tools tcpdump ethtool iproute2 python3
 
-COPY --from=builder /boringssl/build/tool/bssl /usr/bin/
-COPY --from=builder /runner-src/runner /usr/bin/
+COPY --from=builder /runner-src/runner /runner
 
 COPY ech_key_converter.py /
 
-COPY run_endpoint.sh /run_endpoint.sh
-RUN chmod +x /run_endpoint.sh
+COPY run-endpoint.sh /
 
-ENTRYPOINT [ "/run_endpoint.sh" ]
+ENTRYPOINT [ "sh", "/run-endpoint.sh" ]

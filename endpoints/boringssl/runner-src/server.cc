@@ -141,7 +141,7 @@ unsigned int DoServer(std::string testcase) {
 
     std::vector<uint8_t> dc, dc_priv_raw;
     if (!ReadDelegatedCredential(&dc, &dc_priv_raw, "/test-inputs/dc.txt")) {
-      return false;
+      return 1;
     }
     CBS dc_cbs(bssl::Span<const uint8_t>(dc.data(), dc.size()));
     CBS pkcs8_cbs(
@@ -150,7 +150,7 @@ unsigned int DoServer(std::string testcase) {
     bssl::UniquePtr<EVP_PKEY> dc_priv(EVP_parse_private_key(&pkcs8_cbs));
     if (!dc_priv) {
       fprintf(stderr, "failed to parse delegated credential private key.\n");
-      return false;
+      return 1;
     }
 
     bssl::UniquePtr<CRYPTO_BUFFER> dc_buf(
@@ -158,12 +158,22 @@ unsigned int DoServer(std::string testcase) {
     if (!SSL_set1_delegated_credential(ssl.get(), dc_buf.get(), dc_priv.get(),
                                        nullptr)) {
       fprintf(stderr, "SSL_set1_delegated_credential failed.\n");
-      return false;
+      return 1;
     }
 
     if (!DoListen(ssl.get())) {
+      fprintf(stderr, "DoListen() failed.\n");
       return 1;
     }
+    if (!SSL_delegated_credential_used(ssl.get())) {
+      fprintf(stderr, "Delegated credential was not sent by server.\n");
+      return 1;
+    }
+    if (SSL_shutdown(ssl.get()) == -1) {
+      fprintf(stderr, "Shutdown failed.\n");
+      return 1;
+    }
+
     return 0;
   } else {
     fprintf(stderr, "Testcase unsupported.\n");

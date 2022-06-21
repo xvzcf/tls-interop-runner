@@ -4,6 +4,8 @@ set -e
 # SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors
 # SPDX-License-Identifier: MIT
 
+# TODO: This script needs refactoring.
+
 sh /setup-routes.sh
 
 DB_DIR="db"
@@ -21,22 +23,36 @@ if [ "$TESTCASE" = "ech-accept" ] || [ "$TESTCASE" = "ech-reject" ]; then
     openssl pkcs12 -export -out nss_testdata/root.pfx -name root.com -inkey /test-inputs/root.key -in /test-inputs/root.crt -passout pass:"$P12_PASS"
     openssl pkcs12 -export -out nss_testdata/example.pfx -name example.com -inkey /test-inputs/example.key -in /test-inputs/example.crt -passout pass:"$P12_PASS"
     openssl pkcs12 -export -out nss_testdata/client-facing.pfx -name client-facing.com -inkey /test-inputs/client-facing.key -in /test-inputs/client-facing.crt -passout pass:"$P12_PASS"
+
+    # Import certs and keys
+    for i in "example" "client-facing" "root"
+    do
+       pk12util -i nss_testdata/"$i".pfx -d "$DB_DIR" -W "$P12_PASS"
+
+       # Trust the root
+       if [ "$i" = "root" ]; then
+         certutil -A -n "$i".com -t "C,C,C" -i /test-inputs/"$i".crt -d "$DB_DIR"
+       fi
+    done
+
+elif [ "$TESTCASE" = "dc" ]; then
+    # Create pfx files for pk12util
+    openssl pkcs12 -export -out nss_testdata/root.pfx -name root.com -inkey /test-inputs/root.key -in /test-inputs/root.crt -passout pass:"$P12_PASS"
+    openssl pkcs12 -export -out nss_testdata/example.pfx -name example.com -inkey /test-inputs/example.key -in /test-inputs/example.crt -passout pass:"$P12_PASS"
+    for i in "example" "root"
+    do
+       pk12util -i nss_testdata/"$i".pfx -d "$DB_DIR" -W "$P12_PASS"
+
+       # Trust the root
+       if [ "$i" = "root" ]; then
+         certutil -A -n "$i".com -t "C,C,C" -i /test-inputs/"$i".crt -d "$DB_DIR"
+       fi
+    done
+
 else
     echo "Test case not supported."
-    return 64
+    exit 64
 fi
-
-# Import certs and keys
-certs=("example" "client-facing" "root")
-for i in "${certs[@]}"
-do
-   pk12util -i nss_testdata/"$i".pfx -d "$DB_DIR" -W "$P12_PASS"
-
-   # Trust the root
-   if [ "$i" = "root" ]; then
-     certutil -A -n "$i".com -t "C,C,C" -i /test-inputs/"$i".crt -d "$DB_DIR"
-   fi
-done
 
 if [ "$ROLE" = "client" ]; then
     echo "Running NSS client."
@@ -56,9 +72,11 @@ if [ "$ROLE" = "client" ]; then
       else
         echo "Aborted the connection as expected"
       fi
-    else
+    elif [ "$TESTCASE" = "ech-accept" ]; then
       ECH_CONFIGS=$(</test-inputs/ech_configs)
       tstclnt -d "$DB_DIR" -h example.com -p "$PORT" -N "$ECH_CONFIGS" -A req.txt
+    else # "$TESTCASE" = "dc"
+      tstclnt -d "$DB_DIR" -h example.com -p "$PORT" -B
     fi
 else
     echo "Running NSS server."

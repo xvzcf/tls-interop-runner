@@ -16,7 +16,7 @@ import (
 
 const usage = `Usage:
 
-    $ runner [--help] {--client STRING} {--server STRING} {--testcase STRING|--alltestcases} [--build] [--verbose]
+    $ runner [--help] --client=STRING --server=STRING {--testcase=STRING|--alltestcases} [--build] [--verbose]
 
     $ runner --client=boringssl --server=cloudflare-go --build builds boringssl as a client and cloudflare-go as a server (and all their dependent services)
     $ runner --client=boringssl --server=cloudflare-go --testcase=dc [--build] (rebuilds the endpoints, their dependencies, then) runs just the dc test with boringssl as client and cloudflare-go as server
@@ -46,7 +46,7 @@ func main() {
 	} else if *listInteropClients {
 		var clientNames []string
 		for _, e := range endpoints {
-			if e.client && !e.regression {
+			if e.client {
 				clientNames = append(clientNames, e.name)
 			}
 		}
@@ -55,7 +55,7 @@ func main() {
 	} else if *listInteropServers {
 		var serverNames []string
 		for _, e := range endpoints {
-			if e.client && !e.regression {
+			if e.server {
 				serverNames = append(serverNames, e.name)
 			}
 		}
@@ -64,7 +64,7 @@ func main() {
 	} else if *listInteropEndpoints {
 		var endpointNames []string
 		for _, e := range endpoints {
-			if e.client && !e.regression {
+			if e.client {
 				endpointNames = append(endpointNames, e.name)
 			}
 		}
@@ -129,16 +129,15 @@ func main() {
 func doBuildEndpoints(client endpoint, server endpoint, verbose bool) error {
 	log.Printf("Building %s client and %s server.\n", client.name, server.name)
 
-	cmd := exec.Command("docker-compose", "build")
+	cmd := exec.Command("docker", "compose", "build")
 	env := os.Environ()
 
-    env = append(env, "CLIENT_SRC=endpoints")
-	env = append(env, fmt.Sprintf("CLIENT=%s", client.name))
+	env = append(env, "DOCKER_SCAN_SUGGEST=false")
 
-	env = append(env, "SERVER_SRC=endpoints")
+	env = append(env, fmt.Sprintf("CLIENT=%s", client.name))
 	env = append(env, fmt.Sprintf("SERVER=%s", server.name))
 
-    // TESTCASE is not needed at this point, and is just
+	// TESTCASE is not needed at this point, and is just
 	// set to suppress unset variable warnings.
 	env = append(env, "TESTCASE=\"\"")
 	cmd.Env = env

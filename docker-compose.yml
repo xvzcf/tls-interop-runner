@@ -27,7 +27,7 @@ services:
 
   server:
     image: tls-endpoint-${SERVER}
-    build: ${SERVER_SRC}/${SERVER}
+    build: endpoints/${SERVER}
     container_name: server
     hostname: server
     stdin_open: true
@@ -54,7 +54,7 @@ services:
 
   client:
     image: tls-endpoint-${CLIENT}
-    build: ${CLIENT_SRC}/${CLIENT}
+    build: endpoints/${CLIENT}
     container_name: client
     hostname: client
     stdin_open: true
