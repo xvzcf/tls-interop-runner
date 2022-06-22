@@ -4,7 +4,7 @@ set -e
 # SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors
 # SPDX-License-Identifier: MIT
 
-# TODO: This script needs refactoring.
+# TODO: This script needs a lot of refactoring.
 
 sh /setup-routes.sh
 
@@ -15,7 +15,7 @@ PORT=4433
 rm -rf nss_testdata
 mkdir nss_testdata
 
-if [ "$TESTCASE" = "ech-accept" ] || [ "$TESTCASE" = "ech-reject" ]; then
+if [ "$TESTCASE" = "ech-accept" ]; then
     # Create a PKCS8 file for the ECH keypair
     python3 /ech_key_converter.py /test-inputs/ech_key nss_testdata/ech_key_converted
 
@@ -58,22 +58,9 @@ if [ "$ROLE" = "client" ]; then
     echo "Running NSS client."
     echo "Client params: $SERVER_PARAMS"
     echo "Test case: $TESTCASE"
-    echo "GET / HTTP/1.0" > req.txt
-    if [ "$TESTCASE" = "ech-reject" ]; then
-      ECH_CONFIGS=$(</test-inputs/ech_configs_invalid)
-
-      # Default cert verifier (which is used by tstclnt) is not ECH-aware.
-      # Override failures since the hostnames won't match.
-      tstclnt -d "$DB_DIR" -h example.com -p "$PORT" -N "$ECH_CONFIGS" -A req.txt -o &> err.txt || true
-      ECH_CONFIGS=$(sed '4q;d' err.txt)
-      if [ "$ECH_CONFIGS" != "$(</test-inputs/ech_configs)" ]; then
-        echo "Unexpected error:"
-        cat err.txt
-      else
-        echo "Aborted the connection as expected"
-      fi
-    elif [ "$TESTCASE" = "ech-accept" ]; then
+    if [ "$TESTCASE" = "ech-accept" ]; then
       ECH_CONFIGS=$(</test-inputs/ech_configs)
+      echo "GET / HTTP/1.0" > req.txt
       tstclnt -d "$DB_DIR" -h example.com -p "$PORT" -N "$ECH_CONFIGS" -A req.txt
     else # "$TESTCASE" = "dc"
       tstclnt -d "$DB_DIR" -h example.com -p "$PORT" -B
@@ -82,6 +69,11 @@ else
     echo "Running NSS server."
     echo "Server params: $SERVER_PARAMS"
     echo "Test case: $TESTCASE"
-    ECH_KEY=$(<nss_testdata/ech_key_converted)
-    selfserv -a example.com -n example.com -a client-facing.com -n client-facing.com -p "$PORT" -d "$DB_DIR" -X "$ECH_KEY"
+    if [ "$TESTCASE" = "ech-accept" ]; then
+        ECH_KEY=$(<nss_testdata/ech_key_converted)
+        selfserv -a example.com -n example.com -a client-facing.com -n client-facing.com -p "$PORT" -d "$DB_DIR" -X "$ECH_KEY"
+    else # "$TESTCASE" = "dc"
+      echo "Test case not supported."
+      exit 64
+    fi
 fi

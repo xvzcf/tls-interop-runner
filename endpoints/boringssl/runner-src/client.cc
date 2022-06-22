@@ -50,6 +50,54 @@ static bool DoConnection(SSL *ssl) {
 }
 
 unsigned int DoClient(std::string testcase) {
-  fprintf(stderr, "Testcase unsupported.\n");
-  return 64;
+  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
+
+  g_keylog_file = fopen(g_keylog_filename, "a");
+  if (g_keylog_file == nullptr) {
+    perror("fopen");
+    return 1;
+  }
+  SSL_CTX_set_keylog_callback(ctx.get(), KeyLogCallback);
+
+  if (testcase == "ech-accept") {
+    if (!SSL_CTX_load_verify_locations(ctx.get(), "/test-inputs/root.crt",
+                                       nullptr)) {
+      fprintf(stderr, "Failed to load root certificates.\n");
+      ERR_print_errors_fp(stderr);
+      return 1;
+    }
+    SSL_CTX_set_verify(
+        ctx.get(), SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
+
+    bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
+
+    const char *ech_config_path = "/test-inputs/ech_configs";
+    ScopedFILE f(fopen(ech_config_path, "rb"));
+    std::vector<uint8_t> ech_config_b64;
+    std::vector<uint8_t> ech_config;
+    if (f == nullptr || !ReadAll(&ech_config_b64, f.get()) ||
+        !DecodeBase64(&ech_config, &ech_config_b64)) {
+      fprintf(stderr, "Error reading and decoding %s.\n", ech_config_path);
+      return 1;
+    }
+    if (!SSL_set1_ech_config_list(ssl.get(), ech_config.data(),
+                                  ech_config.size())) {
+      fprintf(stderr, "Error setting ECHConfigList.\n");
+      return 1;
+    }
+    if (!DoConnection(ssl.get())) {
+      ERR_print_errors_fp(stderr);
+      return 1;
+    }
+
+    if (!SSL_ech_accepted(ssl.get())) {
+      fprintf(stderr, "ECH was not negotiated.\n");
+      return 1;
+    }
+
+    return 0;
+  } else {
+    fprintf(stderr, "Testcase unsupported.\n");
+    return 64;
+  }
 }

@@ -124,6 +124,14 @@ unsigned int DoServer(std::string testcase) {
       ERR_print_errors_fp(stderr);
       return 1;
     }
+    if (!SSL_ech_accepted(ssl.get())) {
+      fprintf(stderr, "ECH was not negotiated.\n");
+      return 1;
+    }
+    if (SSL_shutdown(ssl.get()) == -1) {
+      fprintf(stderr, "Shutdown failed.\n");
+      return 1;
+    }
     return 0;
   } else if (testcase == "dc") {
     if (!SSL_CTX_use_PrivateKey_file(ctx.get(), "/test-inputs/example.key",

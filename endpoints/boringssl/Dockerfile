@@ -8,7 +8,7 @@ RUN apt-get update && \
     git clone --branch master https://boringssl.googlesource.com/boringssl /boringssl
 
 WORKDIR /boringssl
-RUN git checkout 295b31324f8c557dcd3c1c831857e33a7f23bc52
+RUN git checkout 1f51cfc7d7f54d2bee30bb5793470ef9c36a5083
 
 RUN mkdir /boringssl/build
 WORKDIR /boringssl/build
@@ -25,7 +25,7 @@ RUN apt-get update && \
 
 COPY --from=builder /runner-src/runner /runner
 
-COPY ech_key_converter.py /
+COPY ech-key-converter.py /
 
 COPY run-endpoint.sh /
 
