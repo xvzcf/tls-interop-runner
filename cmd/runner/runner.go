@@ -7,10 +7,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 )
 
@@ -21,10 +19,12 @@ const usage = `Usage:
     $ runner --client=boringssl --server=cloudflare-go --build builds boringssl as a client and cloudflare-go as a server (and all their dependent services)
     $ runner --client=boringssl --server=cloudflare-go --testcase=dc [--build] (rebuilds the endpoints, their dependencies, then) runs just the dc test with boringssl as client and cloudflare-go as server
     $ runner --client=boringssl --server=cloudflare-go --alltestcases [--build] (rebuilds the endpoints, their dependencies, then) runs all testcases with boringssl as client and cloudflare-go as server
+    $ runner -process-results -path /path/to/results
 `
 
-var testInputsDir = filepath.Join("generated", "test-inputs")
-var testOutputsDir = filepath.Join("generated", "test-outputs")
+var generatedDir = "generated"
+var testInputsDir = filepath.Join(generatedDir, "test-inputs")
+var testOutputsDir = filepath.Join(generatedDir, "test-outputs")
 
 func main() {
 	var (
@@ -33,42 +33,25 @@ func main() {
 		testcaseName         = flag.String("testcase", "", "")
 		buildEndpoints       = flag.Bool("build", false, "")
 		runAllTests          = flag.Bool("alltestcases", false, "")
-		listInteropClients   = flag.Bool("list-interop-clients", false, "")
-		listInteropServers   = flag.Bool("list-interop-servers", false, "")
-		listInteropEndpoints = flag.Bool("list-interop-endpoints", false, "")
+		listClients          = flag.Bool("list-clients", false, "")
+		listInteropServers   = flag.Bool("list-servers", false, "")
+		listInteropEndpoints = flag.Bool("list-endpoints", false, "")
 		verbose              = flag.Bool("verbose", false, "")
+		processResults       = flag.Bool("process-results", false, "")
 		help                 = flag.Bool("help", false, "")
 	)
 	flag.Parse()
 
 	if *help {
 		fmt.Print(usage)
-	} else if *listInteropClients {
-		var clientNames []string
-		for _, e := range endpoints {
-			if e.client {
-				clientNames = append(clientNames, e.name)
-			}
-		}
-		jsonOut, _ := json.Marshal(clientNames)
+	} else if *listClients {
+		jsonOut, _ := json.Marshal(getClients())
 		fmt.Print(string(jsonOut))
 	} else if *listInteropServers {
-		var serverNames []string
-		for _, e := range endpoints {
-			if e.server {
-				serverNames = append(serverNames, e.name)
-			}
-		}
-		jsonOut, _ := json.Marshal(serverNames)
+		jsonOut, _ := json.Marshal(getServers())
 		fmt.Print(string(jsonOut))
 	} else if *listInteropEndpoints {
-		var endpointNames []string
-		for _, e := range endpoints {
-			if e.client {
-				endpointNames = append(endpointNames, e.name)
-			}
-		}
-		jsonOut, _ := json.Marshal(endpointNames)
+		jsonOut, _ := json.Marshal(getEndpoints())
 		fmt.Print(string(jsonOut))
 	} else if *clientName != "" && *serverName != "" && (*buildEndpoints || *runAllTests || *testcaseName != "") {
 		var client, server endpoint
@@ -95,8 +78,24 @@ func main() {
 					os.Exit(1)
 				}
 			}
+			testResultsDir := filepath.Join("generated", fmt.Sprintf("%s_%s", client.name, server.name))
+			err := os.RemoveAll(testResultsDir)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			err = os.MkdirAll(testResultsDir, os.ModePerm)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
 			for name, t := range testcases {
 				err := doTestcase(t, name, client, server, *verbose, true)
+				if err != nil {
+					fmt.Println(err)
+					os.Exit(1)
+				}
+				err = os.Rename(testOutputsDir, filepath.Join(testResultsDir, fmt.Sprintf("%s", name)))
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
@@ -121,80 +120,12 @@ func main() {
 				os.Exit(1)
 			}
 		}
+	} else if *processResults {
+		err := processTestResults(generatedDir)
+		if err != nil {
+			log.Fatalf("ERROR: %s\n", err)
+		}
 	} else {
 		fmt.Print(usage)
 	}
-}
-
-func doBuildEndpoints(client endpoint, server endpoint, verbose bool) error {
-	log.Printf("Building %s client and %s server.\n", client.name, server.name)
-
-	cmd := exec.Command("docker", "compose", "build")
-	env := os.Environ()
-
-	env = append(env, "DOCKER_SCAN_SUGGEST=false")
-
-	env = append(env, fmt.Sprintf("CLIENT=%s", client.name))
-	env = append(env, fmt.Sprintf("SERVER=%s", server.name))
-
-	// TESTCASE is not needed at this point, and is just
-	// set to suppress unset variable warnings.
-	env = append(env, "TESTCASE=\"\"")
-	cmd.Env = env
-	if verbose {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("docker-compose build: %s", err)
-	}
-
-	log.Printf("Building done.\n")
-	return nil
-}
-
-func doTestcase(t testcase, testcaseName string, client endpoint, server endpoint, verbose bool, allTestsMode bool) error {
-	log.Println("Testing: " + testcaseName)
-	var result resultType
-
-	err := t.setup(verbose)
-	if err != nil {
-		goto teardown
-	}
-
-	result, err = t.run(client, server)
-	if result != resultSuccess {
-		goto teardown
-	}
-
-	result, err = t.verify()
-	if result != resultSuccess {
-		goto teardown
-	}
-teardown:
-	testcaseError := err
-
-	testStatusFile, err := os.Create(filepath.Join(testOutputsDir, "test.txt"))
-	if err != nil {
-		return fmt.Errorf("error creating test status file: %s", err)
-	}
-	testStatusLogger := log.New(io.MultiWriter(os.Stdout, testStatusFile), "", 0)
-
-	if testcaseError != nil {
-		testStatusLogger.Printf("%s,%s,%s,%v,%s", client.name, server.name, testcaseName, result, testcaseError)
-	} else {
-		testStatusLogger.Printf("%s,%s,%s,%v", client.name, server.name, testcaseName, result)
-	}
-	testStatusFile.Close()
-
-	err = t.teardown(allTestsMode)
-	if err != nil {
-		return fmt.Errorf("Error tearing down: %s", err)
-	}
-
-	if !allTestsMode {
-		return testcaseError
-	}
-	return nil
 }

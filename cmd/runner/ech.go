@@ -28,6 +28,14 @@ type testcaseECHAccept struct {
 	logFile   *os.File
 }
 
+func (t *testcaseECHAccept) getMetadata() testMetadata {
+	return testMetadata{
+		name:   t.name,
+		abbrev: "EA",
+		desc:   "Server sends ECH config that should be accepted by the client.",
+	}
+}
+
 func (t *testcaseECHAccept) setup(verbose bool) error {
 	err := os.RemoveAll(testInputsDir)
 	if err != nil {
@@ -219,26 +227,7 @@ func (t *testcaseECHAccept) verify() (resultType, error) {
 	return resultSuccess, nil
 }
 
-func (t *testcaseECHAccept) teardown(moveOutputs bool) error {
-	pc, _, _, _ := runtime.Caller(0)
-	fn := runtime.FuncForPC(pc)
-
+func (t *testcaseECHAccept) teardown() error {
 	t.logFile.Close()
-
-	if moveOutputs {
-		destDir := filepath.Join("generated", fmt.Sprintf("%s-out", t.name))
-		err := os.RemoveAll(destDir)
-		if err != nil {
-			err = &errorWithFnName{err: err.Error(), fnName: fn.Name()}
-			t.logger.Println(err)
-			return err
-		}
-		err = os.Rename(testOutputsDir, destDir)
-		if err != nil {
-			err = &errorWithFnName{err: err.Error(), fnName: fn.Name()}
-			t.logger.Println(err)
-			return err
-		}
-	}
 	return nil
 }

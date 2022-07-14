@@ -27,6 +27,14 @@ type testcaseDC struct {
 	logFile   *os.File
 }
 
+func (t *testcaseDC) getMetadata() testMetadata {
+	return testMetadata{
+		name:   t.name,
+		abbrev: "DC",
+		desc:   "Server signs handshake using delegated credentials.",
+	}
+}
+
 func (t *testcaseDC) setup(verbose bool) error {
 	err := os.RemoveAll(testInputsDir)
 	if err != nil {
@@ -62,9 +70,9 @@ func (t *testcaseDC) setup(verbose bool) error {
 
 	rootSignatureAlgorithm, err := utils.MakeRootCertificate(
 		&utils.Config{
-			Hostnames:          []string{"root.com"},
-			ValidFrom:          time.Now(),
-			ValidFor:           365 * 25 * time.Hour,
+			Hostnames: []string{"root.com"},
+			ValidFrom: time.Now(),
+			ValidFor:  365 * 25 * time.Hour,
 		},
 		filepath.Join(testInputsDir, "root.crt"),
 		filepath.Join(testInputsDir, "root.key"),
@@ -77,10 +85,10 @@ func (t *testcaseDC) setup(verbose bool) error {
 
 	intermediateSignatureAlgorithm, err := utils.MakeIntermediateCertificate(
 		&utils.Config{
-			Hostnames:          []string{"example.com"},
-			ValidFrom:          time.Now(),
-			ValidFor:           365 * 25 * time.Hour,
-			ForDC:              true,
+			Hostnames: []string{"example.com"},
+			ValidFrom: time.Now(),
+			ValidFor:  365 * 25 * time.Hour,
+			ForDC:     true,
 		},
 		filepath.Join(testInputsDir, "root.crt"),
 		filepath.Join(testInputsDir, "root.key"),
@@ -96,7 +104,7 @@ func (t *testcaseDC) setup(verbose bool) error {
 	dcValidFor := 24 * time.Hour
 	dcAlgorithm, err := utils.MakeDelegatedCredential(
 		&utils.Config{
-			ValidFor:           dcValidFor,
+			ValidFor: dcValidFor,
 		},
 		filepath.Join(testInputsDir, "example.crt"),
 		filepath.Join(testInputsDir, "example.key"),
@@ -194,26 +202,7 @@ func (t *testcaseDC) verify() (resultType, error) {
 	return resultSuccess, nil
 }
 
-func (t *testcaseDC) teardown(moveOutputs bool) error {
-	pc, _, _, _ := runtime.Caller(0)
-	fn := runtime.FuncForPC(pc)
-
+func (t *testcaseDC) teardown() error {
 	t.logFile.Close()
-
-	if moveOutputs {
-		destDir := filepath.Join("generated", fmt.Sprintf("%s-out", t.name))
-		err := os.RemoveAll(destDir)
-		if err != nil {
-			err = &errorWithFnName{err: err.Error(), fnName: fn.Name()}
-			t.logger.Println(err)
-			return err
-		}
-		err = os.Rename(testOutputsDir, destDir)
-		if err != nil {
-			err = &errorWithFnName{err: err.Error(), fnName: fn.Name()}
-			t.logger.Println(err)
-			return err
-		}
-	}
 	return nil
 }

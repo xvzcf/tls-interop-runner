@@ -17,7 +17,7 @@ import sys
 import struct
 import base64
 
-ECH_VERSION = 0xFE0A
+ECH_VERSION = 0xFE0D
 DHKEM_X25519_SHA256 = 0x0020
 
 # Hardcoded ASN.1 for ECPrivateKey, curve25519. See section 2 of rfc5958.
@@ -51,7 +51,7 @@ def convert_ech_key(in_file, out_file):
 
         # Verify that the version number is as expected.
         if version != ECH_VERSION:
-            print("ECHConfig.version is not 0xfe0a: got", hex(version))
+            print("ECHConfig.version is not {}: got {}".format(ECH_VERSION, hex(version)))
             exit(1)
 
         # Parse ECHConfig.Length, which indicates the length of

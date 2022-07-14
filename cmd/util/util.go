@@ -22,7 +22,6 @@ const usage = `Usage:
     $ util -make-dc -cert-in leaf.crt -key-in leaf.key -out dc.txt
     $ util -make-ech-key -cert-in client-facing.crt -out ech_configs -key-out ech_key
     $ util -make-ech-key -cert-in client_facing.crt -out ech_configs -key-out ech_key
-    $ util -process-results -path /path/to/results
 
     The -alg option can be passed to -make-root, -make-intermediate, and -make-dc.
     When it is not specified, a suitable one is chosen at random.
@@ -37,9 +36,7 @@ func main() {
 		makeIntermediateCert = flag.Bool("make-intermediate", false, "")
 		makeDC               = flag.Bool("make-dc", false, "")
 		makeECH              = flag.Bool("make-ech", false, "")
-		processResults       = flag.Bool("process-results", false, "")
 		help                 = flag.Bool("help", false, "")
-		resultsPath          = flag.String("path", "", "")
 		inCertPath           = flag.String("cert-in", "", "")
 		inKeyPath            = flag.String("key-in", "", "")
 		outPath              = flag.String("out", "", "")
@@ -130,11 +127,6 @@ func main() {
 			*outPath,
 			*outKeyPath,
 		)
-		if err != nil {
-			log.Fatalf("ERROR: %s\n", err)
-		}
-	} else if *processResults && *resultsPath != "" {
-		err := utils.ProcessTestResults(*resultsPath)
 		if err != nil {
 			log.Fatalf("ERROR: %s\n", err)
 		}

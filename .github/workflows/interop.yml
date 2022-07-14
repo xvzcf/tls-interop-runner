@@ -34,21 +34,21 @@ jobs:
       - name: List interop endpoints
         id: set-endpoints
         run: |
-          ENDPOINTS=$(./bin/runner --list-interop-endpoints)
+          ENDPOINTS=$(./bin/runner --list-endpoints)
           echo $ENDPOINTS
           echo "::set-output name=endpoints::$ENDPOINTS"
         working-directory: go/src/github.com/${{ github.repository }}
       - name: Determine interop clients
         id: set-clients
         run: |
-          CLIENTS=$(./bin/runner --list-interop-clients)
+          CLIENTS=$(./bin/runner --list-clients)
           echo $CLIENTS
           echo "::set-output name=clients::$CLIENTS"
         working-directory: go/src/github.com/${{ github.repository }}
       - name: Determine interop servers
         id: set-servers
         run: |
-          SERVERS=$(./bin/runner --list-interop-servers)
+          SERVERS=$(./bin/runner --list-servers)
           echo $SERVERS
           echo "::set-output name=servers::$SERVERS"
         working-directory: go/src/github.com/${{ github.repository }}
@@ -147,10 +147,4 @@ jobs:
         working-directory: go/src/github.com/${{ github.repository }}
       - name: Run tests
         run: ./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --alltestcases || true
-        working-directory: go/src/github.com/${{ github.repository }}
-      - name: Upload test results if running on main branch
-        if: ${{ github.ref == 'refs/heads/main' }}
-        env:
-          TOKEN: ${{ secrets.RESULTSAPITOKEN }}
-        run: env BEARER_TOKEN=$TOKEN ./bin/util -process-results -path=generated
         working-directory: go/src/github.com/${{ github.repository }}
