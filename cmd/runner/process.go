@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -31,41 +32,41 @@ type resultsSummary struct {
 	URLS    map[string]string   `json:"urls"`
 }
 
-func processTestResults(root string) error {
+func processTestResults(resultsDir string) error {
+	if _, err := os.Stat(resultsDir); err != nil {
+		return err
+	}
+
 	var summary resultsSummary
 	summary.Servers = getServers()
 	summary.Clients = getClients()
 	testcaseNames := getTestcaseNamesSorted()
 	summary.Results = make([][]result, len(summary.Clients)*len(summary.Servers))
+
 	l := 0
 	for i := range summary.Clients {
 		for j := range summary.Servers {
-			var resultsDirExists bool
-			testResultsDir := filepath.Join("generated", fmt.Sprintf("%s_%s", summary.Clients[i], summary.Servers[j]))
-			if _, err := os.Stat(testResultsDir); err != nil {
-				resultsDirExists = false
-			} else {
-				resultsDirExists = true
-			}
-			for k := range testcaseNames {
-				testMetadata := testcases[testcaseNames[k]].getMetadata()
-				if resultsDirExists {
-					path := filepath.Join(testResultsDir, testcaseNames[k], "test.txt")
-					testInfo, err := os.ReadFile(path)
-					if err != nil {
-						return err
-					}
-					testInfoSeparated := strings.Split(string(testInfo), ",")
-					summary.Results[l] = append(summary.Results[l], result{
-						Abbr:   testMetadata.abbrev,
-						Name:   testMetadata.name,
-						Result: strings.TrimSuffix(testInfoSeparated[3], "\n"),
-					})
-				} else {
+			summaryFilePath := filepath.Join(resultsDir, fmt.Sprintf("summary_%s_%s.txt", summary.Clients[i], summary.Servers[j]))
+			summaryFile, err := os.Open(summaryFilePath)
+			if err != nil {
+				for k := range testcaseNames {
+					testMetadata := testcases[testcaseNames[k]].getMetadata()
 					summary.Results[l] = append(summary.Results[l], result{
 						Abbr:   testMetadata.abbrev,
 						Name:   testMetadata.name,
 						Result: resultSkipped.String(),
+					})
+				}
+			} else {
+				defer summaryFile.Close()
+				fscanner := bufio.NewScanner(summaryFile)
+				for fscanner.Scan() {
+					testInfoSeparated := strings.Split(fscanner.Text(), ",")
+					testMetadata := testcases[testInfoSeparated[2]].getMetadata()
+					summary.Results[l] = append(summary.Results[l], result{
+						Abbr:   testMetadata.abbrev,
+						Name:   testMetadata.name,
+						Result: strings.TrimSuffix(testInfoSeparated[3], "\n"),
 					})
 				}
 			}
@@ -85,7 +86,7 @@ func processTestResults(root string) error {
 	}
 
 	summaryJson, _ := json.MarshalIndent(summary, "", "    ")
-	err := ioutil.WriteFile(filepath.Join(generatedDir, "summary.json"), summaryJson, 0644)
+	err := ioutil.WriteFile(filepath.Join(resultsDir, "summary.json"), summaryJson, 0644)
 	if err != nil {
 		return err
 	}

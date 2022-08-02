@@ -226,7 +226,7 @@
     document.getElementsByTagName("body")[0].classList.add("loading");
     var xhr = new XMLHttpRequest();
     xhr.responseType = 'json';
-    xhr.open('GET', dir + '/summary.json');
+    xhr.open('GET', dir + '/summary/summary.json');
     xhr.onreadystatechange = function() {
       if(xhr.readyState !== XMLHttpRequest.DONE) return;
       if(xhr.status !== 200) {
@@ -239,5 +239,5 @@
     xhr.send();
   }
 
-  load("generated");
+  load("logs");
 })();

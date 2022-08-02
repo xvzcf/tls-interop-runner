@@ -5,12 +5,12 @@
 # and has been modified by the tls-interop-runner Authors.
 
 name: interop
+  #on:
+  #  schedule:
+  #  - cron: "0 */8 * * *" # every 8h
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
-    types: [synchronize, opened, reopened, ready_for_review]
 
 jobs:
   setup:
@@ -29,7 +29,7 @@ jobs:
           fetch-depth: 1
           path: go/src/github.com/${{ github.repository }}
       - name: Build test runner
-        run: make runner && make util
+        run: make runner
         working-directory: go/src/github.com/${{ github.repository }}
       - name: List interop endpoints
         id: set-endpoints
@@ -53,7 +53,7 @@ jobs:
           echo "::set-output name=servers::$SERVERS"
         working-directory: go/src/github.com/${{ github.repository }}
 
-  build-save-network:
+  build-network:
     runs-on: ubuntu-latest
     name: Build network
     if: github.event.pull_request.draft == false
@@ -74,7 +74,7 @@ jobs:
           path: tls-interop-network.tar.gz
           if-no-files-found: error
 
-  build-save-endpoints:
+  build-endpoints:
     needs: [ setup ]
     runs-on: ubuntu-latest
     strategy:
@@ -99,7 +99,7 @@ jobs:
           if-no-files-found: error
 
   tests:
-    needs: [ setup, build-save-network, build-save-endpoints ]
+    needs: [ setup, build-network, build-endpoints ]
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
@@ -143,8 +143,64 @@ jobs:
           docker load --input tls-endpoint-${{ matrix.server }}.tar.gz
       - run: docker image ls
       - name: Build test runner
-        run: make runner && make util
+        run: make runner
         working-directory: go/src/github.com/${{ github.repository }}
-      - name: Run tests
-        run: ./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --alltestcases || true
+      - name: Run interop tests
+        run: ./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --everything || true
         working-directory: go/src/github.com/${{ github.repository }}
+      - name: Generate summary of the run
+        run: find . -name "test.txt" -exec cat {} + > summary_${{ matrix.client}}_${{ matrix.server }}.txt
+        working-directory: go/src/github.com/${{ github.repository }}/generated
+      - name: Upload summary
+        #if: ${{ github.event_name == 'schedule' }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: results
+          path: go/src/github.com/${{ github.repository }}/generated/summary_${{ matrix.client }}_${{ matrix.server }}.txt
+      - name: Send test outputs to web server
+        #if: ${{ github.event_name == 'schedule' }}
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.TLS_INTEROP_HOST }}
+          username: ${{ secrets.TLS_INTEROP_USERNAME }}
+          key: ${{ secrets.TLS_INTEROP_SSH_KEY }}
+          port: ${{ secrets.TLS_INTEROP_SSH_PORT }}
+          source: go/src/github.com/${{ github.repository }}/generated/*-out
+          target: ${{ secrets.TLS_INTEROP_WEBSITE_DIR }}/logs/${{ matrix.client }}_${{ matrix.server }}/
+          rm: true
+          strip_components: 6
+
+  aggregate:
+    needs: [ setup, tests ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+          path: go/src/github.com/${{ github.repository }}
+      - name: Download results
+        uses: actions/download-artifact@v3
+        with:
+          name: results
+          path: ${{ github.workspace }}/results
+      - uses: actions/setup-go@v1
+        with:
+          go-version: '1.16'
+      - name: Build test runner
+        run: make runner
+        working-directory: go/src/github.com/${{ github.repository }}
+      - name: Aggregate results
+        run: ./bin/runner --process-results -path ${{ github.workspace }}/results
+        working-directory: go/src/github.com/${{ github.repository }}
+      - name: Upload result to web server
+        #if: ${{ github.event_name == 'schedule' }}
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.TLS_INTEROP_HOST }}
+          username: ${{ secrets.TLS_INTEROP_USERNAME }}
+          key: ${{ secrets.TLS_INTEROP_SSH_KEY }}
+          port: ${{ secrets.TLS_INTEROP_SSH_PORT }}
+          source: results/summary.json
+          target: ${{ secrets.TLS_INTEROP_WEBSITE_DIR }}/logs/summary
+          rm: true
+          strip_components: 1

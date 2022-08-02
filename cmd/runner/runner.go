@@ -14,11 +14,11 @@ import (
 
 const usage = `Usage:
 
-    $ runner [--help] --client=STRING --server=STRING {--testcase=STRING|--alltestcases} [--build] [--verbose]
+    $ runner [--help] --client=STRING --server=STRING {--testcase=STRING|--everything} [--build] [--verbose]
 
     $ runner --client=boringssl --server=cloudflare-go --build builds boringssl as a client and cloudflare-go as a server (and all their dependent services)
     $ runner --client=boringssl --server=cloudflare-go --testcase=dc [--build] (rebuilds the endpoints, their dependencies, then) runs just the dc test with boringssl as client and cloudflare-go as server
-    $ runner --client=boringssl --server=cloudflare-go --alltestcases [--build] (rebuilds the endpoints, their dependencies, then) runs all testcases with boringssl as client and cloudflare-go as server
+    $ runner --client=boringssl --server=cloudflare-go --everything [--build] (rebuilds the endpoints, their dependencies, then) runs all testcases with boringssl as client and cloudflare-go as server
     $ runner -process-results -path /path/to/results
 `
 
@@ -32,12 +32,13 @@ func main() {
 		serverName           = flag.String("server", "", "")
 		testcaseName         = flag.String("testcase", "", "")
 		buildEndpoints       = flag.Bool("build", false, "")
-		runAllTests          = flag.Bool("alltestcases", false, "")
+		runAllTests          = flag.Bool("everything", false, "")
 		listClients          = flag.Bool("list-clients", false, "")
 		listInteropServers   = flag.Bool("list-servers", false, "")
 		listInteropEndpoints = flag.Bool("list-endpoints", false, "")
 		verbose              = flag.Bool("verbose", false, "")
 		processResults       = flag.Bool("process-results", false, "")
+		resultsPath          = flag.String("path", "", "")
 		help                 = flag.Bool("help", false, "")
 	)
 	flag.Parse()
@@ -78,24 +79,21 @@ func main() {
 					os.Exit(1)
 				}
 			}
-			testResultsDir := filepath.Join("generated", fmt.Sprintf("%s_%s", client.name, server.name))
-			err := os.RemoveAll(testResultsDir)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-			err = os.MkdirAll(testResultsDir, os.ModePerm)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-			for name, t := range testcases {
-				err := doTestcase(t, name, client, server, *verbose, true)
+
+			for _, name := range getTestcaseNamesSorted() {
+				err := doTestcase(testcases[name], name, client, server, *verbose, true)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
 				}
-				err = os.Rename(testOutputsDir, filepath.Join(testResultsDir, fmt.Sprintf("%s", name)))
+
+				destDir := filepath.Join(generatedDir, fmt.Sprintf("%s-out", name))
+				err = os.RemoveAll(destDir)
+				if err != nil {
+					fmt.Println(err)
+					os.Exit(1)
+				}
+				err = os.Rename(testOutputsDir, destDir)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
@@ -121,7 +119,7 @@ func main() {
 			}
 		}
 	} else if *processResults {
-		err := processTestResults(generatedDir)
+		err := processTestResults(*resultsPath)
 		if err != nil {
 			log.Fatalf("ERROR: %s\n", err)
 		}
