@@ -5,7 +5,7 @@
   const map = { client: {}, server: {}, test: {} };
   const color_type = { succeeded: "success", unsupported: "secondary", failed: "danger", skipped: "info" };
 
-  function getLogLink(log_dir, server, client, test, text, res) {
+  function getLogLink(server, client, test, text, res) {
     var ttip = "<b>Test:</b> " + test + "<br>" +
                "<b>Client:</b> " + client + "<br>" +
                "<b>Server:</b> " + server + "<br>" +
@@ -16,7 +16,7 @@
     var ttip_target = a;
 
     if (res !== "skipped") {
-      a.href = "logs/" + log_dir + "/" + server + "_" + client + "/" + test;
+      a.href = "logs/" + client + "_" + server + "/" + test + "-out";
       a.target = "_blank";
       ttip += "<br><br>(Click for logs.)";
     } else {
@@ -78,7 +78,7 @@
     var appendResult = function(el, res, i, j) {
       result.results[index].forEach(function(item) {
         if(item.result !== res) return;
-        el.appendChild(getLogLink("generated", result.servers[j], result.clients[i], item.name, item.abbr, res));
+        el.appendChild(getLogLink(result.servers[j], result.clients[i], item.name, item.abbr, res));
       });
     };
 

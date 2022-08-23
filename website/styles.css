@@ -5,6 +5,14 @@ body.loading .navbar-nav .end-time {
   opacity: 0.3;
 }
 
+.navbar-brand {
+    font-size: 1.6rem;
+}
+
+p {
+    font-size: 1.3rem;
+}
+
 .btn-xs {
   margin: 0 .1rem .1rem 0;
   padding: .01rem .025rem .01rem .025rem;
