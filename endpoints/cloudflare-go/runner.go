@@ -4,7 +4,10 @@
 package main
 
 import (
+	"bytes"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -16,6 +19,54 @@ import (
 type TestHandler interface {
 	Config() (*tls.Config, error)
 	ConnectionHandler(*tls.Conn, error) error
+}
+
+// dcServerHandler implements the server's handler for the "dc" test case.
+//
+// in this test case,
+type dcServerHandler struct {
+	TestHandler
+}
+
+func (t *dcServerHandler) Config() (*tls.Config, error) {
+	config := baseServerConfig.Clone()
+	config.SupportDelegatedCredential = true
+
+	raw, err := os.ReadFile("/test-inputs/dc.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	dcRaw := bytes.Split(raw, []byte(","))
+
+	dcDecoded := make([]byte, hex.DecodedLen(len(dcRaw[0])))
+	n, err := hex.Decode(dcDecoded, dcRaw[0])
+	if err != nil {
+		log.Fatal(err)
+	}
+	dc, err := tls.UnmarshalDelegatedCredential(dcDecoded[:n])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dcKeyDecoded := make([]byte, hex.DecodedLen(len(dcRaw[1])))
+	n, err = hex.Decode(dcKeyDecoded, dcRaw[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+	dcKey, err := x509.ParsePKCS8PrivateKey(dcKeyDecoded[:n])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	config.Certificates[0].DelegatedCredentials = append(config.Certificates[0].DelegatedCredentials, tls.DelegatedCredentialPair{dc, dcKey})
+	return config, nil
+}
+
+func (t *dcServerHandler) ConnectionHandler(conn *tls.Conn, err error) error {
+	if err != nil {
+		return fmt.Errorf("Unexpected error: \"%s\"", err)
+	}
+	return nil
 }
 
 // dcClientHandler implements the client's handler for the "dc" test case.
@@ -126,6 +177,7 @@ var testCaseHandlers = map[string]testCase{
 	// authentication. See draft-ietf-tls-subcerts.
 	"dc": {
 		Client: &dcClientHandler{},
+		Server: &dcServerHandler{},
 	},
 
 	// The client offers the ECH extension and the server accepts. The client

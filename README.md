@@ -12,7 +12,7 @@ Runner](https://github.com/marten-seemann/quic-interop-runner).
 
 ## Requirements
 
-- Tshark >= 3.2.0 present in the PATH
+- tshark >= 3.2.0 present in the PATH
 - Go >= 1.15
 - `docker` >= v20.10.17 and `docker-compose` >= v2.6.0
 

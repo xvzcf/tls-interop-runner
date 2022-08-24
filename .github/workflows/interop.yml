@@ -5,9 +5,9 @@
 # and has been modified by the tls-interop-runner Authors.
 
 name: interop
-  on:
-    schedule:
-    - cron: "0 */8 * * *" # every 8h
+on:
+  push:
+    branches: [main]
 
 jobs:
   setup:
