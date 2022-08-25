@@ -143,19 +143,17 @@ jobs:
         run: make runner
         working-directory: go/src/github.com/${{ github.repository }}
       - name: Run interop tests
-        run: ./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --everything || true
+        run: ./bin/runner --client=${{ matrix.client }} --server=${{ matrix.server }} --everything
         working-directory: go/src/github.com/${{ github.repository }}
       - name: Generate summary of the run
         run: find . -name "test.txt" -exec cat {} + > summary_${{ matrix.client}}_${{ matrix.server }}.txt
         working-directory: go/src/github.com/${{ github.repository }}/generated
       - name: Upload summary
-        #if: ${{ github.event_name == 'schedule' }}
         uses: actions/upload-artifact@v2
         with:
           name: results
           path: go/src/github.com/${{ github.repository }}/generated/summary_${{ matrix.client }}_${{ matrix.server }}.txt
       - name: Send test outputs to web server
-        #if: ${{ github.event_name == 'schedule' }}
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.TLS_INTEROP_HOST }}
@@ -190,7 +188,6 @@ jobs:
         run: ./bin/runner --process-results -path ${{ github.workspace }}/results
         working-directory: go/src/github.com/${{ github.repository }}
       - name: Upload result to web server
-        #if: ${{ github.event_name == 'schedule' }}
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.TLS_INTEROP_HOST }}
