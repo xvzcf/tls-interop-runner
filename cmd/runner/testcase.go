@@ -94,7 +94,7 @@ func (rt resultType) String() string {
 	}
 }
 
-func doTestcase(t testcase, testName string, client endpoint, server endpoint, verbose bool, allTestsMode bool) error {
+func doTestcase(t testcase, testName string, client endpoint, server endpoint, verbose bool) (resultType, error) {
 	log.Println("Testing: " + testName)
 	var result resultType
 
@@ -109,16 +109,16 @@ func doTestcase(t testcase, testName string, client endpoint, server endpoint, v
 	}
 
 	result, err = t.verify()
-	if result != resultSuccess {
-		goto teardown
-	}
+
 teardown:
 	testcaseError := err
 
 	testStatusFile, err := os.Create(filepath.Join(testOutputsDir, "test.txt"))
 	if err != nil {
-		return fmt.Errorf("error creating test status file: %s", err)
+		return resultError, fmt.Errorf("error creating test status file: %s", err)
 	}
+	defer testStatusFile.Close()
+
 	testStatusLogger := log.New(io.MultiWriter(os.Stdout, testStatusFile), "", 0)
 
 	if testcaseError != nil {
@@ -126,18 +126,13 @@ teardown:
 	} else {
 		testStatusLogger.Printf("%s,%s,%s,%v", client.name, server.name, testName, result)
 	}
-	testStatusFile.Close()
 
 	err = t.teardown()
 	if err != nil {
-		return fmt.Errorf("Error tearing down: %s", err)
+		return resultError, fmt.Errorf("Error tearing down: %s", err)
 	}
 
-	if allTestsMode {
-		return nil
-	} else {
-		return testcaseError
-	}
+	return result, testcaseError
 }
 
 func getTestcaseNamesSorted() []string {

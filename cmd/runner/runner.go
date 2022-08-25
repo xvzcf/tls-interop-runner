@@ -81,8 +81,8 @@ func main() {
 			}
 
 			for _, name := range getTestcaseNamesSorted() {
-				err := doTestcase(testcases[name], name, client, server, *verbose, true)
-				if err != nil {
+				result, err := doTestcase(testcases[name], name, client, server, *verbose)
+				if result == resultError {
 					fmt.Println(err)
 					os.Exit(1)
 				}
@@ -108,7 +108,7 @@ func main() {
 						os.Exit(1)
 					}
 				}
-				err := doTestcase(t, *testcaseName, client, server, *verbose, false)
+				_, err := doTestcase(t, *testcaseName, client, server, *verbose)
 				if err != nil {
 					log.Printf("ERROR: %s", err.Error())
 					os.Exit(1)

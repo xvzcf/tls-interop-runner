@@ -213,7 +213,7 @@ func (t *testcaseECHAccept) verify() (resultType, error) {
 	if err != nil {
 		err = &errorWithFnName{err: err.Error(), fnName: fn.Name()}
 		t.logger.Println(err)
-		return resultFailure, err
+		return resultError, err
 	}
 
 	err = pcap.Validate(transcript, t.name)
