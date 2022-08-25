@@ -21,9 +21,9 @@ WORKDIR /build
 # Clone and build. Output in /nss/dist/Debug/.
 RUN cd /build \
    && hg clone https://hg.mozilla.org/projects/nspr \
-        --rev c75b4e36b7e8134aac9f3058411aa0d4c2d55094 \
+        --rev 08516dbcdb20f6bdb1f918857e5a5b973d1e9feb \
    && hg clone https://hg.mozilla.org/projects/nss \
-        --rev dbf0b29b6c05b73fceb3c95e1da0725e029dbfdb \
+        --rev 841fad6dbcfd150eeeb2c83f2dc69d7acb180cdb \
    && cd nss \
    && ./build.sh \
    && cd /

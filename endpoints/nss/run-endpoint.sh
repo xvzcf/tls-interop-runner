@@ -63,7 +63,7 @@ if [ "$ROLE" = "client" ]; then
       echo "GET / HTTP/1.0" > req.txt
       tstclnt -d "$DB_DIR" -h example.com -p "$PORT" -N "$ECH_CONFIGS" -A req.txt
     else # "$TESTCASE" = "dc"
-      tstclnt -d "$DB_DIR" -h example.com -p "$PORT" -B
+      tstclnt -Q -d "$DB_DIR" -h example.com -p "$PORT" -B
     fi
 else
     echo "Running NSS server."
