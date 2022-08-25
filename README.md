@@ -1,9 +1,9 @@
 <!-- SPDX-FileCopyrightText: 2020 The tls-interop-runner Authors -->
 <!-- SPDX-License-Identifier: CC0-1.0 -->
 
-# (Work in Progress) TLS Interop Test Runner
+# TLS Interop Runner
 
-The TLS Interop Test Runner aims to test interoperability between
+The TLS Interop Runner aims to test interoperability between
 implementations of TLS by running various tests involving clients and servers
 drawn from differing implementations.
 
@@ -12,9 +12,9 @@ Runner](https://github.com/marten-seemann/quic-interop-runner).
 
 ## Requirements
 
-- tshark >= 3.2.0 present in the PATH
+- Tshark >= 3.2.0 present in the PATH
 - Go >= 1.15
-- `docker` >= v20.10.17 and `docker-compose` >= v2.6.0
+- Docker >= v20.10.17 and Docker Compose >= v2.6.0
 
 ## Quickstart
 

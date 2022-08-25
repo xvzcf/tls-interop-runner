@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2019 Jana Iyengar, Marten Seemann
+// SPDX-License-Identifier: Apache-2.0
+// This file is taken from https://github.com/marten-seemann/quic-interop-runner and has been modified by the tls-interop-runner Authors.
+
 /* globals document, window, console, URLSearchParams, XMLHttpRequest, $, history */
 
 (function() {
