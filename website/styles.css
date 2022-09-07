@@ -40,6 +40,5 @@ p {
   vertical-align: middle;
 }
 tr.hover-xy > th, th.hover-xy {
-  background-color: #cfd9db;
   color: #e74c3c;
 }
