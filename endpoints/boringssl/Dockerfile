@@ -8,7 +8,7 @@ RUN apt-get update && \
     git clone --branch master https://boringssl.googlesource.com/boringssl /boringssl
 
 WORKDIR /boringssl
-RUN git checkout 1f51cfc7d7f54d2bee30bb5793470ef9c36a5083
+#RUN git checkout 1f51cfc7d7f54d2bee30bb5793470ef9c36a5083
 
 RUN mkdir /boringssl/build
 WORKDIR /boringssl/build
@@ -19,6 +19,7 @@ WORKDIR /runner-src
 RUN make
 
 FROM ubuntu:20.04
+#RUN echo 'nameserver 8.8.8.8'>/etc/resolv.conf
 
 RUN apt-get update && \
     apt-get install -y net-tools tcpdump ethtool iproute2 python3

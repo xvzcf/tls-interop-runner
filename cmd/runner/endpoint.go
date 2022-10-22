@@ -37,6 +37,12 @@ var endpoints = map[string]endpoint{
 		server: true,
 		url:    "https://hg.mozilla.org/projects/nss",
 	},
+	"fizz": {
+		name:   "fizz",
+		client: true,
+		server: true,
+		url:    "https://github.com/facebookincubator/fizz",
+	},
 }
 
 func getClients() []string {
@@ -91,7 +97,7 @@ func doBuildEndpoints(client endpoint, server endpoint, verbose bool) error {
 	}
 	err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("docker-compose build: %s", err)
+		return fmt.Errorf("docker", "compose build: %s", err)
 	}
 
 	log.Printf("Building done.\n")
