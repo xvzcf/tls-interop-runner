@@ -8,10 +8,11 @@ RUN apt-get update && \
 RUN git clone https://github.com/cloudflare/go /cf
 
 WORKDIR /cf/src
-RUN git checkout fcd6ea914cd2f09dce4d07697bad2d967785f8ab
+#RUN git checkout fcd6ea914cd2f09dce4d07697bad2d967785f8ab
 RUN ./make.bash
+#RUN echo 'nameserver 8.8.8.8'>/etc/resolv.conf
 
-FROM ubuntu:20.04
+FROM ubuntu:latest
 
 RUN apt-get update && \
     apt-get install -y net-tools tcpdump ethtool iproute2
