@@ -66,7 +66,6 @@ def aeadtostr(aead_id):
         print("unsupported AEAD id: %x", aead_id)
         exit(1)
 
-#TODO update this func to comply with ech15 (currently ech09)
 def convert_ech_key(in_file, out_key, out_config):
     with open(in_file, "rb") as f:
         ech_keypair = base64.b64decode(f.read(), None, True)
@@ -158,18 +157,16 @@ def convert_ech_key(in_file, out_key, out_config):
             out_key_file.write(public_key.hex() + "\n")
             out_key_file.close()
 
-        # TODO Update this json format to comply with fizz's version
-        # FIZZ is still unable to parse this. Look into this >:L
         ech_json = {
-            "echconfigs": [{
+           "echconfigs": [{
                 "version": "Draft15",
                 "public_name": public_name.decode("utf-8"),
                 "public_key": public_key.hex(),
                 "kem_id": kemtostr(kem_id),
                 "cipher_suites": cipher_suites,
-                "maximum_name_length": max_name_length.hex(),
-                "extensions": extensions.hex(),
-                "config_id": config_id.hex()
+                "maximum_name_length": "0x" + max_name_length.hex(),
+                "extensions":  extensions.hex(),
+                "config_id": "0x" + config_id.hex()
             }]
         }
         out_config_file = open(out_config, "w")
