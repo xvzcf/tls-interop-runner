@@ -20,7 +20,7 @@ import (
 	"github.com/xvzcf/tls-interop-runner/internal/utils"
 )
 
-type testcaseECHAccept struct {
+type testcaseECH struct {
 	name      string
 	timeout   time.Duration
 	outputDir string
@@ -28,7 +28,7 @@ type testcaseECHAccept struct {
 	logFile   *os.File
 }
 
-func (t *testcaseECHAccept) getMetadata() testMetadata {
+func (t *testcaseECH) getMetadata() testMetadata {
 	return testMetadata{
 		name:   t.name,
 		abbrev: "EA",
@@ -36,7 +36,7 @@ func (t *testcaseECHAccept) getMetadata() testMetadata {
 	}
 }
 
-func (t *testcaseECHAccept) setup(verbose bool) error {
+func (t *testcaseECH) setup(verbose bool) error {
 	err := os.RemoveAll(testInputsDir)
 	if err != nil {
 		return err
@@ -147,7 +147,7 @@ func (t *testcaseECHAccept) setup(verbose bool) error {
 
 }
 
-func (t *testcaseECHAccept) run(client endpoint, server endpoint) (result resultType, err error) {
+func (t *testcaseECH) run(client endpoint, server endpoint) (result resultType, err error) {
 	pc, _, _, _ := runtime.Caller(0)
 	fn := runtime.FuncForPC(pc)
 
@@ -196,7 +196,7 @@ runUnsuccessful:
 	return result, err
 }
 
-func (t *testcaseECHAccept) verify() (resultType, error) {
+func (t *testcaseECH) verify() (resultType, error) {
 	pc, _, _, _ := runtime.Caller(0)
 	fn := runtime.FuncForPC(pc)
 
@@ -227,7 +227,7 @@ func (t *testcaseECHAccept) verify() (resultType, error) {
 	return resultSuccess, nil
 }
 
-func (t *testcaseECHAccept) teardown() error {
+func (t *testcaseECH) teardown() error {
 	t.logFile.Close()
 	return nil
 }
