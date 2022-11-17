@@ -126,6 +126,7 @@ func main() {
 			},
 			*outPath,
 			*outKeyPath,
+			false,
 		)
 		if err != nil {
 			log.Fatalf("ERROR: %s\n", err)
