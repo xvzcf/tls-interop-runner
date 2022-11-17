@@ -77,6 +77,7 @@ def convert_ech_key(in_file, out_key, out_config):
             offset += 2
             private_key = ech_keypair[offset : offset + length]
             offset += length
+            print("private:", private_key)
 
         length = struct.unpack("!H", ech_keypair[offset : offset + 2])[0]
         offset += 2
@@ -84,7 +85,6 @@ def convert_ech_key(in_file, out_key, out_config):
         version = struct.unpack("!H", ech_keypair[offset : offset + 2])[0]
         offset += 2
 
-        print("private:", private_key)
         print("version:", hex(version))
 
         if version != ECH_VERSION:

@@ -12,7 +12,7 @@ if [ "$TESTCASE" = "ech-accept" ] || [ "$TESTCASE" = "ech-reject" ]; then
     # Convert ECH config to fizz tool format first
     echo "Running fizz ECH test case, preparing..."
     python3 /ech_key_converter.py /test-inputs/ech_key fizz_testdata/key fizz_testdata/config
-    #python3 /ech_key_converter.py /test-inputs/ech_configs_invalid -n fizz_testdata/invalid_config
+    python3 /ech_key_converter.py /test-inputs/ech_configs_invalid -n fizz_testdata/invalid_config
     cat /test-inputs/client-facing.crt /test-inputs/root.crt > fizz_testdata/client-facing-chain.crt
     cat /test-inputs/example.crt /test-inputs/root.crt > fizz_testdata/example-chain.crt
 else
