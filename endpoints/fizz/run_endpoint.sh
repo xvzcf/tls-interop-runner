@@ -30,8 +30,7 @@ if [ "$ROLE" = "client" ]; then
 #            return 1
 #        fi
     else
-        echo "TODO: Implement rejection handling"
-        return 64
+        /output/fizz/bin/fizz client -connect "example.com:$PORT"  -echconfigs fizz_testdata/invalid_config -cafile fizz_testdata/client-facing-chain.crt
     fi
 else
     echo "Test case: $TESTCASE"

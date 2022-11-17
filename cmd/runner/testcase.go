@@ -36,6 +36,9 @@ var testcases = map[string]testcase{
 	"ech-accept": &testcaseECH{
 		name:    "ech-accept",
 		timeout: 100 * time.Second},
+	"ech-reject": &testcaseECH{
+		name:    "ech-reject",
+		timeout: 100 * time.Second},
 }
 
 type errorWithFnName struct {
