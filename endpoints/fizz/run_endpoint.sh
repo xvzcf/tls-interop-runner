@@ -23,7 +23,7 @@ fi
 if [ "$ROLE" = "client" ]; then
     echo "Test case: $TESTCASE"
     if [ "$TESTCASE" = "ech-accept" ]; then
-        /output/fizz/bin/fizz client -connect "example.com:$PORT" -cafile  -echconfigs fizz_testdata/config
+        /output/fizz/bin/fizz client -connect "example.com:$PORT"  -echconfigs fizz_testdata/config -cafile fizz_testdata/client-facing-chain.crt
 #        if ! grep -q "Encrypted client hello (ECH) enabled" out.txt; then
 #            echo "Unexpected error: ECH wasn't enabled!"
 #            cat out.txt
