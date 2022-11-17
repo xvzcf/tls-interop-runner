@@ -76,7 +76,7 @@ func generateInvalidECHKey() []byte{
 
 // GenerateECHKey generates an ECH config and corresponding key using the
 // parameters specified by template.
-func GenerateECHKey(template ECHConfigTemplate, stale bool) (*ECHKey, error) {
+func GenerateECHKey(template ECHConfigTemplate) (*ECHKey, error) {
 	// HELLO This key is returned as a marshalled binary seq.
 	//       Make.go then takes this and changes it to network byte order
 	if template.Version != ECHVersionDraft13 {
@@ -96,11 +96,6 @@ func GenerateECHKey(template ECHConfigTemplate, stale bool) (*ECHKey, error) {
 	}
 
 	publicKey, err := pk.MarshalBinary()
-	// If requesting a stale config. Set ech config public key to 
-	// a random value. Simulates a stale config.
-	if stale {
-		publicKey = generateInvalidECHKey()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal KEM public key: %s", err)
 	}

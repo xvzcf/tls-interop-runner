@@ -134,9 +134,8 @@ func (t *testcaseECH) setup(verbose bool) error {
 			},
 			MaximumNameLength: 0,
 		},
-		filepath.Join(testInputsDir, "ech_configs"),
-		filepath.Join(testInputsDir, "ech_key"),
-		false,
+		filepath.Join(testInputsDir, "ech_configs_invalid"),
+		filepath.Join(testInputsDir, "ech_key_invalid"),
 	)
 
 	// Create stale ECH Key
@@ -154,9 +153,8 @@ func (t *testcaseECH) setup(verbose bool) error {
 			},
 			MaximumNameLength: 0,
 		},
-		filepath.Join(testInputsDir, "ech_configs_invalid"),
-		filepath.Join(testInputsDir, "ech_key_invalid"),
-		true,
+		filepath.Join(testInputsDir, "ech_configs"),
+		filepath.Join(testInputsDir, "ech_key"),
 	)
 
 	if err != nil {
