@@ -134,9 +134,29 @@ func (t *testcaseECH) setup(verbose bool) error {
 			},
 			MaximumNameLength: 0,
 		},
+		filepath.Join(testInputsDir, "ech_configs_invalid"),
+		filepath.Join(testInputsDir, "ech_key_invalid"),
+	)
+
+	// Create stale ECH Key
+	err = utils.MakeECHKey(
+		utils.ECHConfigTemplate{
+			Id:         123, // This is chosen at random by the client-facing server.
+			PublicName: "client-facing.com",
+			Version:    utils.ECHVersionDraft13,
+			KemId:      uint16(hpke.KEM_X25519_HKDF_SHA256),
+			KdfIds: []uint16{
+				uint16(hpke.KDF_HKDF_SHA256),
+			},
+			AeadIds: []uint16{
+				uint16(hpke.AEAD_AES128GCM),
+			},
+			MaximumNameLength: 0,
+		},
 		filepath.Join(testInputsDir, "ech_configs"),
 		filepath.Join(testInputsDir, "ech_key"),
 	)
+
 	if err != nil {
 		runLog.Close()
 		return err

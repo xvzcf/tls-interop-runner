@@ -6,6 +6,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 
 	"golang.org/x/crypto/cryptobyte"
 
@@ -66,6 +67,13 @@ type ECHKey struct {
 	Config []byte
 }
 
+//generateInvalidKey generates an invalid key by using rng.
+func generateInvalidECHKey() []byte{
+	invalidKey := make([]byte, 32)
+	rand.Read(invalidKey)
+	return invalidKey
+}
+
 // GenerateECHKey generates an ECH config and corresponding key using the
 // parameters specified by template.
 func GenerateECHKey(template ECHConfigTemplate) (*ECHKey, error) {
@@ -81,6 +89,8 @@ func GenerateECHKey(template ECHConfigTemplate) (*ECHKey, error) {
 	}
 
 	pk, sk, err := kem.Scheme().GenerateKeyPair()
+
+
 	if err != nil {
 		return nil, fmt.Errorf("KEM key generation failed: %s", err)
 	}
