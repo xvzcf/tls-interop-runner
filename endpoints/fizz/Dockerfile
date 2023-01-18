@@ -6,17 +6,8 @@ FROM ubuntu:latest AS builder
 RUN apt-get update && \
     DEBIAN_FRONTEND= apt-get install -y git g++ cmake make pkg-config python3 m4 libssl-dev libz-dev
 
-# When we have a finalized/fixed public commit we'll set it here
-# TODO update to company fizz repo after landing ech version change
-#RUN git clone https://github.com/NickR23/fizz.git /fizz
-#ADD fizz /fizz
-#WORKDIR /fizz
-#RUN git clone https://github.com/facebookincubator/fizz /fizz
-#WORKDIR /fizz
-#RUN git checkout c58600b7e717d9f09f556cfdb24a275c6e44a9aa
-
-#TODO update to official fizz when everything is working
-COPY fizz /fizz
+RUN git clone https://github.com/NickR23/fizz.git /fizz
+WORKDIR /fizz
 
 WORKDIR /fizz/build
 RUN mkdir /output
