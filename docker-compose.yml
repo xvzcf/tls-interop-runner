@@ -26,8 +26,6 @@ services:
         ipv6_address: fd00:cafe:cafe:100::2
 
   server:
-    dns:
-      - 8.8.8.8
     image: tls-endpoint-${SERVER}
     build: endpoints/${SERVER}
     container_name: server
@@ -55,8 +53,6 @@ services:
       - "client:193.167.0.100"
 
   client:
-    dns:
-      - 8.8.8.8
     image: tls-endpoint-${CLIENT}
     build: endpoints/${CLIENT}
     container_name: client
