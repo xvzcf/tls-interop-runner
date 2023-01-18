@@ -38,6 +38,13 @@ func Validate(transcript TLSTranscript, testCase string) error {
 			}
 		}
 		return errors.New("ClientHello: supported_versions does not include TLS 1.3")
+	case "ech-reject":
+		// Check sni in clienthello outer. 
+		// SHOULD NOT be the backend server sni backend.com
+		if transcript.ClientHello.serverName != "client-facing.com" {
+			return errors.New("ClientHello: SNI should specify client-facing.com")
+		}
+		return nil
 	}
 	return nil
 }

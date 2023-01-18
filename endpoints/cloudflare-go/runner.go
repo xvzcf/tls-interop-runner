@@ -132,7 +132,9 @@ func echAcceptConnectionHandler(conn *tls.Conn, err error) error {
 	return nil
 }
 
-type echRejectClientHandler struct{}
+type echRejectClientHandler struct{
+	TestHandler
+}
 
 func (t *echRejectClientHandler) Config() (*tls.Config, error) {
 	return echClientConfig("/test-inputs/ech_configs_invalid")
@@ -212,12 +214,13 @@ func doClient(t TestHandler) error {
 	}
 
 	c, err := tls.Dial("tcp", "example.com:4433", config)
-	if err != nil {
-		return err
+	
+	if c != nil {
+		defer c.Close()
 	}
-	defer c.Close()
 
 	err = t.ConnectionHandler(c, err)
+
 	if err != nil {
 		return err
 	}

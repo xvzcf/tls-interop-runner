@@ -33,8 +33,11 @@ var testcases = map[string]testcase{
 	"dc": &testcaseDC{
 		name:    "dc",
 		timeout: 100 * time.Second},
-	"ech-accept": &testcaseECHAccept{
+	"ech-accept": &testcaseECH{
 		name:    "ech-accept",
+		timeout: 100 * time.Second},
+	"ech-reject": &testcaseECH{
+		name:    "ech-reject",
 		timeout: 100 * time.Second},
 }
 

@@ -20,7 +20,7 @@ import (
 	"github.com/xvzcf/tls-interop-runner/internal/utils"
 )
 
-type testcaseECHAccept struct {
+type testcaseECH struct {
 	name      string
 	timeout   time.Duration
 	outputDir string
@@ -28,7 +28,7 @@ type testcaseECHAccept struct {
 	logFile   *os.File
 }
 
-func (t *testcaseECHAccept) getMetadata() testMetadata {
+func (t *testcaseECH) getMetadata() testMetadata {
 	return testMetadata{
 		name:   t.name,
 		abbrev: "EA",
@@ -36,7 +36,7 @@ func (t *testcaseECHAccept) getMetadata() testMetadata {
 	}
 }
 
-func (t *testcaseECHAccept) setup(verbose bool) error {
+func (t *testcaseECH) setup(verbose bool) error {
 	err := os.RemoveAll(testInputsDir)
 	if err != nil {
 		return err
@@ -134,9 +134,29 @@ func (t *testcaseECHAccept) setup(verbose bool) error {
 			},
 			MaximumNameLength: 0,
 		},
+		filepath.Join(testInputsDir, "ech_configs_invalid"),
+		filepath.Join(testInputsDir, "ech_key_invalid"),
+	)
+
+	// Create stale ECH Key
+	err = utils.MakeECHKey(
+		utils.ECHConfigTemplate{
+			Id:         123, // This is chosen at random by the client-facing server.
+			PublicName: "client-facing.com",
+			Version:    utils.ECHVersionDraft13,
+			KemId:      uint16(hpke.KEM_X25519_HKDF_SHA256),
+			KdfIds: []uint16{
+				uint16(hpke.KDF_HKDF_SHA256),
+			},
+			AeadIds: []uint16{
+				uint16(hpke.AEAD_AES128GCM),
+			},
+			MaximumNameLength: 0,
+		},
 		filepath.Join(testInputsDir, "ech_configs"),
 		filepath.Join(testInputsDir, "ech_key"),
 	)
+
 	if err != nil {
 		runLog.Close()
 		return err
@@ -147,7 +167,7 @@ func (t *testcaseECHAccept) setup(verbose bool) error {
 
 }
 
-func (t *testcaseECHAccept) run(client endpoint, server endpoint) (result resultType, err error) {
+func (t *testcaseECH) run(client endpoint, server endpoint) (result resultType, err error) {
 	pc, _, _, _ := runtime.Caller(0)
 	fn := runtime.FuncForPC(pc)
 
@@ -196,7 +216,7 @@ runUnsuccessful:
 	return result, err
 }
 
-func (t *testcaseECHAccept) verify() (resultType, error) {
+func (t *testcaseECH) verify() (resultType, error) {
 	pc, _, _, _ := runtime.Caller(0)
 	fn := runtime.FuncForPC(pc)
 
@@ -227,7 +247,7 @@ func (t *testcaseECHAccept) verify() (resultType, error) {
 	return resultSuccess, nil
 }
 
-func (t *testcaseECHAccept) teardown() error {
+func (t *testcaseECH) teardown() error {
 	t.logFile.Close()
 	return nil
 }
