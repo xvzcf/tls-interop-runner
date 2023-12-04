@@ -8,7 +8,7 @@ RUN apt-get update && \
     git clone --branch master https://boringssl.googlesource.com/boringssl /boringssl
 
 WORKDIR /boringssl
-RUN git checkout 1f51cfc7d7f54d2bee30bb5793470ef9c36a5083
+RUN git checkout f78fe19fc98e0e6f760e05c6b9d48725004700d0
 
 RUN mkdir /boringssl/build
 WORKDIR /boringssl/build
@@ -18,7 +18,7 @@ COPY runner-src /runner-src
 WORKDIR /runner-src
 RUN make
 
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 
 RUN apt-get update && \
     apt-get install -y net-tools tcpdump ethtool iproute2 python3
