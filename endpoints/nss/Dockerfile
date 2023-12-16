@@ -11,7 +11,7 @@ RUN apt-get update \
     mercurial \
     ninja-build \
     zlib1g-dev \
-    python \
+    python-is-python3 \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get autoremove -y && apt-get clean -y
 
@@ -28,7 +28,7 @@ RUN cd /build \
    && ./build.sh \
    && cd /
 
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 COPY --from=builder /build/dist/Debug/bin/* /usr/bin/
 COPY --from=builder /build/dist/Debug/lib/* /usr/lib/
 

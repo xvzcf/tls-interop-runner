@@ -37,6 +37,12 @@ var endpoints = map[string]endpoint{
 		server: true,
 		url:    "https://hg.mozilla.org/projects/nss",
 	},
+	"wolfssl": {
+		name:   "wolfssl",
+		client: true,
+		server: false,
+		url:    "https://www.wolfssl.com/",
+	},
 }
 
 func getClients() []string {
